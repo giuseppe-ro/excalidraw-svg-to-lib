@@ -76,9 +76,11 @@ def main(argv: list[str] | None = None) -> None:
         print(f"Error: {error}", file=sys.stderr)
         raise SystemExit(1) from error
 
-    # Print warnings about skipped files
+    # Print warnings about skipped files (ANSI yellow — universal across shells)
+    _YELLOW = "\033[33m"
+    _RESET = "\033[0m"
     for warning in warnings:
-        print(warning, file=sys.stderr)
+        print(f"{_YELLOW}{warning}{_RESET}", file=sys.stderr)
 
     if not resolved_inputs:
         print("Error: no supported icon files to convert.", file=sys.stderr)
