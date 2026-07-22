@@ -30,8 +30,12 @@ def test_cli_converts_directory(tmp_path: Path, monkeypatch, capsys) -> None:
 
     library = json.loads(output_path.read_text(encoding="utf-8"))
     assert library["type"] == "excalidrawlib"
-    assert len(library["library"]) == 2
-    assert all(any(element["type"] == "text" for element in item) for item in library["library"])
+    assert library["version"] == 2
+    assert len(library["libraryItems"]) == 2
+    assert all(
+        any(element["type"] == "text" for element in item["elements"])
+        for item in library["libraryItems"]
+    )
 
 
 def test_cli_no_label_skips_text(tmp_path: Path, monkeypatch) -> None:
@@ -51,7 +55,10 @@ def test_cli_no_label_skips_text(tmp_path: Path, monkeypatch) -> None:
     main()
 
     library = json.loads(output_path.read_text(encoding="utf-8"))
-    assert all("text" not in {element["type"] for element in item} for item in library["library"])
+    assert all(
+        "text" not in {element["type"] for element in item["elements"]}
+        for item in library["libraryItems"]
+    )
 
 
 def test_cli_prints_help(monkeypatch, capsys) -> None:

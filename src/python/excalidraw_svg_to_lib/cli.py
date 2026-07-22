@@ -51,6 +51,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Keep original icon dimensions instead of scaling to --target-size",
     )
+    parser.add_argument(
+        "--v1",
+        action="store_true",
+        help="Use legacy v1 library format (default is v2 with searchable names)",
+    )
     return parser
 
 
@@ -61,6 +66,7 @@ def main(argv: list[str] | None = None) -> None:
         add_label=not args.no_label,
         scale_to_target=not args.no_scale,
         target_icon_size=args.target_size,
+        format_version=1 if args.v1 else 2,
     )
 
     try:
@@ -77,6 +83,7 @@ def main(argv: list[str] | None = None) -> None:
         print(f"Found {len(resolved_inputs)} icon file(s)", file=sys.stderr)
 
     library_items = []
+    icon_names = []
     files = {}
     id_generator = IdGenerator()
 
@@ -84,6 +91,7 @@ def main(argv: list[str] | None = None) -> None:
         try:
             converted = convert_input_to_library(input_path, options, ids=id_generator)
             library_items.append(converted["library"][0])
+            icon_names.append(converted["icon_name"])
             files.update(converted.get("files", {}))
             print(
                 f"Converted {input_path.name} -> {len(converted['library'][0])} element(s)",
@@ -93,7 +101,11 @@ def main(argv: list[str] | None = None) -> None:
             print(f"Error converting {input_path.name}: {error}", file=sys.stderr)
             raise SystemExit(1) from error
 
-    library_file = make_library_file(library_items, files or None)
+    if options.format_version == 2:
+        named_items = list(zip(library_items, icon_names))
+        library_file = make_library_file(named_items, files or None, format_version=2)
+    else:
+        library_file = make_library_file(library_items, files or None, format_version=1)
 
     append_path = Path(args.append) if args.append else None
     if append_path is not None:
@@ -102,7 +114,7 @@ def main(argv: list[str] | None = None) -> None:
     output_path = resolve_output_path(args.inputs, resolved_inputs, args.output, args.append)
     write_library_file(library_file, output_path)
     print(
-        f"Wrote {output_path} ({len(library_file['library'])} library item(s))",
+        f"Wrote {output_path} ({len(library_file.get('libraryItems', library_file.get('library', [])))} library item(s))",
         file=sys.stderr,
     )
 

@@ -95,7 +95,7 @@ class TestAppendToExisting:
         bad.write_text('{"type":"excalidrawlib"}')
         new_file = make_library_file([[]])
 
-        with pytest.raises(ValueError, match="Invalid library file"):
+        with pytest.raises(ValueError, match="Invalid library file.*missing"):
             append_to_existing(new_file, bad)
 
     def test_raises_for_non_list_library(self, tmp_path: Path) -> None:
@@ -103,5 +103,5 @@ class TestAppendToExisting:
         bad.write_text('{"type":"excalidrawlib","library":"not-a-list"}')
         new_file = make_library_file([[]])
 
-        with pytest.raises(ValueError, match="Invalid library file"):
+        with pytest.raises(ValueError, match="Invalid library file.*missing"):
             append_to_existing(new_file, bad)
