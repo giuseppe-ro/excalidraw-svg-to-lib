@@ -12,6 +12,7 @@ from svg_to_excalidrawlib.constants import (
     DEFAULT_LABEL_LINE_HEIGHT,
     DEFAULT_STROKE,
     ELEMENT_SORT_ORDER,
+    MIN_STROKE_WIDTH,
 )
 from svg_to_excalidrawlib.id_generator import IdGenerator
 
@@ -122,6 +123,45 @@ def element_bounds(elements: list[dict[str, Any]]) -> tuple[float, float, float,
     max_x = max(element["x"] + element["width"] for element in elements)
     max_y = max(element["y"] + element["height"] for element in elements)
     return min_x, min_y, max_x, max_y
+
+
+def scale_elements(elements: list[dict[str, Any]], scale: float) -> list[dict[str, Any]]:
+    if scale == 1.0:
+        return elements
+
+    for element in elements:
+        element["x"] *= scale
+        element["y"] *= scale
+        element["width"] *= scale
+        element["height"] *= scale
+
+        if "strokeWidth" in element:
+            element["strokeWidth"] = max(MIN_STROKE_WIDTH, element["strokeWidth"] * scale)
+
+        points = element.get("points")
+        if points:
+            element["points"] = [[point[0] * scale, point[1] * scale] for point in points]
+
+    return elements
+
+
+def fit_elements_to_size(
+    elements: list[dict[str, Any]],
+    target_size: float,
+) -> list[dict[str, Any]]:
+    if not elements or target_size <= 0:
+        return elements
+
+    min_x, min_y, max_x, max_y = element_bounds(elements)
+    bounds_width = max_x - min_x
+    bounds_height = max_y - min_y
+    max_dimension = max(bounds_width, bounds_height)
+
+    if max_dimension <= 0:
+        return elements
+
+    scale = target_size / max_dimension
+    return scale_elements(elements, scale)
 
 
 def icon_group_id(elements: list[dict[str, Any]]) -> str:

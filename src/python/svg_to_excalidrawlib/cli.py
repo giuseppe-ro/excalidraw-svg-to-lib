@@ -43,6 +43,17 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Skip adding filename labels below icons",
     )
+    parser.add_argument(
+        "--target-size",
+        type=float,
+        default=64,
+        help="Scale icons so their largest dimension matches this size (default: 64)",
+    )
+    parser.add_argument(
+        "--no-scale",
+        action="store_true",
+        help="Keep original icon dimensions instead of scaling to --target-size",
+    )
     return parser
 
 
@@ -51,6 +62,8 @@ def main(argv: list[str] | None = None) -> None:
     options = ConvertOptions(
         normalize=not args.no_normalize,
         add_label=not args.no_label,
+        scale_to_target=not args.no_scale,
+        target_icon_size=args.target_size,
     )
 
     try:

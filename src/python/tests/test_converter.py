@@ -7,7 +7,12 @@ from PIL import Image
 
 from tests.conftest import FIXTURES_DIR, SVG_DIR
 
-from svg_to_excalidrawlib.constants import DEFAULT_LABEL_GAP, SUPPORTED_ICON_EXTENSIONS
+from svg_to_excalidrawlib.constants import (
+    DEFAULT_LABEL_FONT_SIZE,
+    DEFAULT_LABEL_GAP,
+    DEFAULT_TARGET_ICON_SIZE,
+    SUPPORTED_ICON_EXTENSIONS,
+)
 from svg_to_excalidrawlib.converter import (
     build_library_file,
     convert_image_to_library,
@@ -15,7 +20,14 @@ from svg_to_excalidrawlib.converter import (
     convert_svg_to_library,
 )
 from svg_to_excalidrawlib.options import ConvertOptions
-from svg_to_excalidrawlib.elements import is_circle_like, normalize_elements, sort_elements
+from svg_to_excalidrawlib.elements import (
+    element_bounds,
+    fit_elements_to_size,
+    is_circle_like,
+    normalize_elements,
+    scale_elements,
+    sort_elements,
+)
 from svg_to_excalidrawlib.paths import (
     collect_input_paths,
     default_output_path,
@@ -116,8 +128,8 @@ class TestSvgConversion:
         rectangle = elements[0]
         assert rectangle["type"] == "rectangle"
         assert rectangle["backgroundColor"] == "#ff0000"
-        assert rectangle["width"] == 20
-        assert rectangle["height"] == 14
+        assert rectangle["width"] == pytest.approx(64.0)
+        assert rectangle["height"] == pytest.approx(44.8)
         assert rectangle["x"] == 0
         assert rectangle["y"] == 0
 
@@ -129,6 +141,7 @@ class TestSvgConversion:
 
         options = ConvertOptions(
             normalize=False,
+            scale_to_target=False,
             id_factory=fixed_options.id_factory,
             int_factory=fixed_options.int_factory,
         )
@@ -186,7 +199,7 @@ class TestLabelConversion:
         assert text["text"] == "lambda"
         assert text["originalText"] == "lambda"
         assert text["textAlign"] == "center"
-        assert text["fontSize"] == 14
+        assert text["fontSize"] == DEFAULT_LABEL_FONT_SIZE
         assert text["fontFamily"] == 2
 
     def test_label_is_centered_below_icon(
@@ -206,6 +219,58 @@ class TestLabelConversion:
 
         assert text["y"] == icon_height + DEFAULT_LABEL_GAP
         assert text["x"] + text["width"] / 2 == pytest.approx(icon_width / 2, abs=0.01)
+
+    def test_scales_lambda_icon_to_target_size(
+        self,
+        fixed_options: ConvertOptions,
+    ) -> None:
+        lambda_path = SVG_DIR / "lambda.svg"
+        if not lambda_path.exists():
+            pytest.skip("lambda.svg fixture not available")
+
+        result = convert_input_to_library(lambda_path, fixed_options)
+        shapes = [element for element in result["library"][0] if element["type"] != "text"]
+        text = result["library"][0][-1]
+
+        _, _, max_x, max_y = element_bounds(shapes)
+        assert max(max_x, max_y) == pytest.approx(DEFAULT_TARGET_ICON_SIZE, abs=0.01)
+        assert text["y"] == pytest.approx(DEFAULT_TARGET_ICON_SIZE + DEFAULT_LABEL_GAP, abs=0.01)
+
+    def test_scales_spaceship_icon_to_target_size(
+        self,
+        fixed_options: ConvertOptions,
+    ) -> None:
+        spaceship_path = SVG_DIR / "spaceship.svg"
+        if not spaceship_path.exists():
+            pytest.skip("spaceship.svg fixture not available")
+
+        result = convert_input_to_library(spaceship_path, fixed_options)
+        shapes = [element for element in result["library"][0] if element["type"] != "text"]
+        text = result["library"][0][-1]
+
+        _, _, max_x, max_y = element_bounds(shapes)
+        icon_width = max_x
+        icon_height = max_y
+
+        assert max(icon_width, icon_height) == pytest.approx(DEFAULT_TARGET_ICON_SIZE, abs=0.01)
+        assert text["y"] == pytest.approx(icon_height + DEFAULT_LABEL_GAP, abs=0.01)
+        assert text["x"] + text["width"] / 2 == pytest.approx(icon_width / 2, abs=0.01)
+
+    def test_sns_icon_stays_at_target_size(
+        self,
+        fixed_options: ConvertOptions,
+    ) -> None:
+        sns_path = SVG_DIR / "sns.svg"
+        if not sns_path.exists():
+            pytest.skip("sns.svg fixture not available")
+
+        result = convert_input_to_library(sns_path, fixed_options)
+        shapes = [element for element in result["library"][0] if element["type"] != "text"]
+
+        _, _, max_x, max_y = element_bounds(shapes)
+        assert max(max_x, max_y) == pytest.approx(DEFAULT_TARGET_ICON_SIZE, abs=0.01)
+        assert shapes[0]["width"] == pytest.approx(DEFAULT_TARGET_ICON_SIZE)
+        assert shapes[0]["height"] == pytest.approx(DEFAULT_TARGET_ICON_SIZE)
 
     def test_svg_conversion_without_input_path_has_no_label(
         self,
@@ -265,8 +330,8 @@ class TestImageConversion:
         element = result["library"][0][0]
 
         assert element["type"] == "image"
-        assert element["width"] == 16
-        assert element["height"] == 12
+        assert element["width"] == pytest.approx(64.0)
+        assert element["height"] == pytest.approx(48.0)
         assert element["status"] == "saved"
         assert element["fileId"] in result["files"]
 
@@ -337,6 +402,46 @@ class TestElementHelpers:
         assert elements[0]["y"] == 0
         assert elements[1]["x"] == 5
         assert elements[1]["y"] == 5
+
+    def test_scale_elements(self) -> None:
+        elements = [
+            {
+                "type": "rectangle",
+                "x": 0,
+                "y": 0,
+                "width": 20,
+                "height": 10,
+                "strokeWidth": 2,
+            },
+            {
+                "type": "line",
+                "x": 2,
+                "y": 4,
+                "width": 8,
+                "height": 6,
+                "strokeWidth": 4,
+                "points": [[0, 0], [8, 6]],
+            },
+        ]
+
+        scale_elements(elements, 2)
+
+        assert elements[0]["width"] == 40
+        assert elements[0]["height"] == 20
+        assert elements[0]["strokeWidth"] == 4
+        assert elements[1]["x"] == 4
+        assert elements[1]["y"] == 8
+        assert elements[1]["points"] == [[0, 0], [16, 12]]
+
+    def test_fit_elements_to_size(self) -> None:
+        elements = [
+            {"type": "rectangle", "x": 0, "y": 0, "width": 40, "height": 40, "strokeWidth": 2},
+        ]
+
+        fit_elements_to_size(elements, 64)
+
+        assert elements[0]["width"] == pytest.approx(64.0)
+        assert elements[0]["height"] == pytest.approx(64.0)
 
     def test_detects_circle_like_paths(self) -> None:
         circle_points = [(0, 0), (1, 0), (2, 1), (2, 2), (1, 2), (0, 1), (0, 0)]
