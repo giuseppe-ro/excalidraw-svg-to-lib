@@ -34,4 +34,4 @@ jobs:
     - name: Test with pytest
       run: |
         cd src/python
-        pytest --strict-config --strict-markers
+        pytest -v -ra --strict-config --strict-markers
