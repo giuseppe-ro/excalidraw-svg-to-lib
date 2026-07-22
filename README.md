@@ -14,7 +14,7 @@ svg/             Source icons
 The `convert.sh` script creates a virtual environment, installs dependencies, and runs the converter in one step:
 
 ```bash
-# Default: convert svg/ → output.excalidrawlib
+# Default: convert svg/ → output.excalidrawlib (v2 format, searchable)
 ./convert.sh
 
 # Custom input and output
@@ -40,7 +40,37 @@ Each CLI accepts:
 Examples:
 
 ```bash
-
 # Python (from src/python)
 python -m excalidraw_svg_to_lib ../../svg/ -o ../../aws-icons.excalidrawlib
+```
+
+## Output formats
+
+### v2 — Searchable library items (default)
+
+By default, the tool outputs Excalidraw's v2 `libraryItems` format. Each icon gets a
+`name` field derived from the filename, making icons **searchable by name** in the
+Excalidraw library panel:
+
+```json
+{
+  "type": "excalidrawlib",
+  "version": 2,
+  "libraryItems": [
+    {
+      "id": "...",
+      "status": "published",
+      "name": "lambda",
+      "elements": [...]
+    }
+  ]
+}
+```
+
+### v1 — Legacy format
+
+Use `--v1` to produce the older `library` array format (no per-item names):
+
+```bash
+python -m excalidraw_svg_to_lib svg/ -o icons.excalidrawlib --v1
 ```

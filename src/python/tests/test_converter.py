@@ -38,7 +38,7 @@ from excalidraw_svg_to_lib.elements import (
 
 @pytest.fixture
 def fixed_options() -> ConvertOptions:
-    return ConvertOptions(normalize=True)
+    return ConvertOptions(normalize=True, format_version=1)
 
 
 @pytest.fixture

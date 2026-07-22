@@ -21,7 +21,7 @@ from excalidraw_svg_to_lib.elements import (
 )
 from excalidraw_svg_to_lib.id_generator import IdGenerator
 from excalidraw_svg_to_lib.io import collect_input_paths, resolve_output_path, write_library_file
-from excalidraw_svg_to_lib.library import append_to_existing, make_library_file
+from excalidraw_svg_to_lib.library import make_library_file
 from excalidraw_svg_to_lib.options import ConvertOptions
 from excalidraw_svg_to_lib.svg import svg_to_elements
 
@@ -153,7 +153,7 @@ def convert_svg_to_library(
 
     return {
         "type": "excalidrawlib",
-        "version": 1,
+        "version": resolved_options.format_version,
         "library": [sort_elements(elements)],
         "files": {},
         "view_box": view_box,
@@ -172,7 +172,7 @@ def convert_image_to_library(
 
     return {
         "type": "excalidrawlib",
-        "version": 1,
+        "version": resolved_options.format_version,
         "library": result["library"],
         "files": result["files"],
     }
@@ -186,6 +186,7 @@ def convert_input_to_library(
     """Convert a single file (SVG or image) into a library payload.
 
     Adds a filename label when ``options.add_label`` is *True*.
+    Returns ``icon_name`` derived from the filename stem for v2 naming.
     """
     path = Path(input_path)
     extension = path.suffix.lower()
@@ -201,19 +202,40 @@ def convert_input_to_library(
 
     result = converter(path, resolved_options, id_generator)
 
+    icon_name = path.stem
+
     if resolved_options.add_label:
         elements = result["library"][0]
         bounds = element_bounds(elements)
         group_id = icon_group_id(elements)
-        elements.append(create_label_element(path.stem, bounds, id_generator, group_id))
+        elements.append(create_label_element(icon_name, bounds, id_generator, group_id))
         result["library"][0] = sort_elements(elements)
 
     return {
         "type": "excalidrawlib",
-        "version": 1,
+        "version": resolved_options.format_version,
         "library": result["library"],
-        "files": result["files"],
+        "libraryItems": _build_v2_items(result["library"], [icon_name], resolved_options.format_version),
+        "files": result.get("files", {}),
+        "icon_name": icon_name,
     }
+
+
+def _build_v2_items(
+    element_lists: list[list[dict[str, Any]]],
+    names: list[str],
+    format_version: int,
+) -> list[dict[str, Any]]:
+    """Build v2 libraryItems from element lists and names."""
+    from excalidraw_svg_to_lib.library import make_v2_item
+
+    if format_version != 2:
+        return []
+
+    items = []
+    for elements, name in zip(element_lists, names):
+        items.append(make_v2_item(elements, name))
+    return items
 
 
 def build_library_file(
@@ -227,17 +249,27 @@ def build_library_file(
         raise ValueError("No supported icon files to convert.")
 
     library_items: list[list[dict[str, Any]]] = []
+    icon_names: list[str] = []
     files: dict[str, Any] = {}
     id_generator = IdGenerator()
 
     for input_path in resolved_inputs:
         converted = convert_input_to_library(input_path, options, ids=id_generator)
         library_items.append(converted["library"][0])
+        icon_names.append(converted["icon_name"])
         files.update(converted.get("files", {}))
 
-    library_file = make_library_file(library_items, files or None)
+    resolved_options = options or ConvertOptions()
+
+    if resolved_options.format_version == 2:
+        named_items = list(zip(library_items, icon_names))
+        library_file = make_library_file(named_items, files or None, format_version=2)
+    else:
+        library_file = make_library_file(library_items, files or None, format_version=1)
 
     if append_path is not None:
+        from excalidraw_svg_to_lib.library import append_to_existing
+
         library_file = append_to_existing(library_file, append_path)
 
     if output_path is not None:
