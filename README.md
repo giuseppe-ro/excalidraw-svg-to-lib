@@ -44,6 +44,20 @@ Examples:
 python -m excalidraw_svg_to_lib ../../svg/ -o ../../aws-icons.excalidrawlib
 ```
 
+## Appending to an existing library
+
+Use `--append` to add new icons to an existing `.excalidrawlib` without replacing it:
+
+```bash
+# Append new-icons/ to an existing library (writes back to the same file)
+python -m excalidraw_svg_to_lib new-icons/ --append icons.excalidrawlib
+
+# Append and write to a different file
+python -m excalidraw_svg_to_lib new-icons/ --append icons.excalidrawlib -o merged.excalidrawlib
+```
+
+Works with both v1 and v2 library formats, including cross-format merges.
+
 ## Output formats
 
 ### v2 — Searchable library items (default)
