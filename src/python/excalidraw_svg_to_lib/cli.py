@@ -14,12 +14,12 @@ from excalidraw_svg_to_lib.runner import convert_input_to_library
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="excalidraw-svg-to-lib",
-        description="Convert SVG or image files into an Excalidraw library (.excalidrawlib).",
+        description="Convert SVG files into an Excalidraw library (.excalidrawlib).",
     )
     parser.add_argument(
         "inputs",
         nargs="+",
-        help="Icon files or directories containing .svg / image files",
+        help="SVG files or directories containing .svg files",
     )
     parser.add_argument(
         "-o",
@@ -69,11 +69,18 @@ def main(argv: list[str] | None = None) -> None:
         format_version=1 if args.v1 else 2,
     )
 
+    warnings: list[str] = []
     try:
-        resolved_inputs = collect_input_paths(args.inputs)
+        resolved_inputs = collect_input_paths(args.inputs, warnings=warnings)
     except (FileNotFoundError, ValueError) as error:
         print(f"Error: {error}", file=sys.stderr)
         raise SystemExit(1) from error
+
+    # Print warnings about skipped files (ANSI yellow — universal across shells)
+    _YELLOW = "\033[33m"
+    _RESET = "\033[0m"
+    for warning in warnings:
+        print(f"{_YELLOW}{warning}{_RESET}", file=sys.stderr)
 
     if not resolved_inputs:
         print("Error: no supported icon files to convert.", file=sys.stderr)

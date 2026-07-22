@@ -38,7 +38,19 @@ python -m excalidraw_svg_to_lib ../../svg/ -o ../../icons.excalidrawlib
 Each CLI accepts:
 
 - individual files (`.svg`)
-- a directory (all supported icons in that folder, non-recursive)
+- a directory (all `.svg` files in that folder, non-recursive)
+
+Files with unsupported extensions are **skipped with a warning** — the converter
+continues processing any valid `.svg` files in the same batch.
+
+```bash
+# Mix of valid and invalid files — valid SVGs are converted, others warned
+python -m excalidraw_svg_to_lib icon.svg logo.png data.json -o icons.excalidrawlib
+# WARN: skipping unsupported file 'logo.png'
+# WARN: skipping unsupported file 'data.json'
+# Converted icon.svg -> 5 element(s)
+# Wrote icons.excalidrawlib (1 library item(s))
+```
 
 Examples:
 

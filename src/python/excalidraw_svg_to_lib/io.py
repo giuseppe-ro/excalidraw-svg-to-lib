@@ -10,7 +10,21 @@ def is_supported_icon_file(file_path: str | Path) -> bool:
     return Path(file_path).suffix.lower() in SUPPORTED_ICON_EXTENSIONS
 
 
-def collect_input_paths(inputs: list[str | Path]) -> list[Path]:
+def collect_input_paths(inputs: list[str | Path], *, warnings: list[str] | None = None) -> list[Path]:
+    """Collect supported icon file paths from the given inputs.
+
+    For directories, only files with supported extensions are included.
+    For individual files, unsupported extensions are skipped with a warning.
+
+    Non-supported files in directories also generate warnings.
+
+    Args:
+        inputs: File or directory paths to process.
+        warnings: Optional list populated with warning messages for skipped files.
+
+    Returns:
+        Sorted, deduplicated list of supported icon file paths.
+    """
     collected: list[Path] = []
 
     for raw_input in inputs:
@@ -19,24 +33,27 @@ def collect_input_paths(inputs: list[str | Path]) -> list[Path]:
             raise FileNotFoundError(f"Input not found: {raw_input}")
 
         if resolved.is_dir():
-            icon_files = sorted(
-                (
-                    resolved / entry.name
-                    for entry in resolved.iterdir()
-                    if entry.is_file() and is_supported_icon_file(entry.name)
-                ),
-                key=lambda path: path.name.lower(),
-            )
-            collected.extend(icon_files)
+            for entry in resolved.iterdir():
+                if not entry.is_file():
+                    continue
+                if is_supported_icon_file(entry.name):
+                    collected.append(resolved / entry.name)
+                elif warnings is not None:
+                    warnings.append(
+                        f"WARN: skipping unsupported file {entry.name!r} in {resolved.name}/"
+                    )
             continue
 
         if resolved.is_file():
-            collected.append(resolved)
+            if is_supported_icon_file(resolved.name):
+                collected.append(resolved)
+            elif warnings is not None:
+                warnings.append(f"WARN: skipping unsupported file {resolved.name!r}")
             continue
 
         raise ValueError(f"Not a file or directory: {raw_input}")
 
-    return list(dict.fromkeys(collected))
+    return list(dict.fromkeys(sorted(collected, key=lambda p: p.name.lower())))
 
 
 def default_output_path(raw_inputs: list[str | Path], resolved_inputs: list[Path]) -> str:

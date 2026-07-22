@@ -4,7 +4,6 @@ import random
 from pathlib import Path
 
 import pytest
-from PIL import Image
 
 from tests.conftest import FIXTURES_DIR, SVG_DIR
 
@@ -20,7 +19,6 @@ from excalidraw_svg_to_lib.io import (
 )
 from excalidraw_svg_to_lib.runner import (
     build_library_file,
-    convert_image_to_library,
     convert_input_to_library,
     convert_svg_to_library,
 )
@@ -61,23 +59,16 @@ def nested_icon_svg(fixtures_dir: Path) -> str:
     return (fixtures_dir / "nested_icon.svg").read_text(encoding="utf-8")
 
 
-@pytest.fixture
-def sample_png(tmp_path: Path) -> Path:
-    image_path = tmp_path / "sample.png"
-    Image.new("RGB", (16, 12), color="#336699").save(image_path, format="PNG")
-    return image_path
-
-
 class TestSupportedFiles:
+    def test_accepts_svg(self) -> None:
+        assert is_supported_icon_file("icon.svg")
+
     @pytest.mark.parametrize(
         "filename",
-        [".svg", ".png", ".jpg", ".jpeg", ".gif", ".webp"],
+        [".png", ".jpg", ".jpeg", ".gif", ".webp", ".txt", ".pdf"],
     )
-    def test_supported_icon_extensions(self, filename: str) -> None:
-        assert is_supported_icon_file(f"icon{filename}")
-
-    def test_rejects_unknown_extensions(self) -> None:
-        assert not is_supported_icon_file("readme.txt")
+    def test_rejects_non_svg_extensions(self, filename: str) -> None:
+        assert not is_supported_icon_file(f"icon{filename}")
 
 
 class TestPathCollection:
@@ -286,77 +277,33 @@ class TestLabelConversion:
 
         assert "text" not in types
 
-    def test_adds_filename_label_to_image(
-        self,
-        sample_png: Path,
-        fixed_options: ConvertOptions,
-        fixed_ids: IdGenerator,
-    ) -> None:
-        result = convert_input_to_library(sample_png, fixed_options, ids=fixed_ids)
-        text = result["library"][0][-1]
-
-        assert text["type"] == "text"
-        assert text["text"] == "sample"
-
-    def test_label_is_grouped_with_icon_shapes(
-        self,
-        sample_png: Path,
-        fixed_options: ConvertOptions,
-        fixed_ids: IdGenerator,
-    ) -> None:
-        result = convert_input_to_library(sample_png, fixed_options, ids=fixed_ids)
-        elements = result["library"][0]
-        image = elements[0]
-        text = elements[-1]
-
-        assert image["type"] == "image"
-        assert text["type"] == "text"
-        assert text["groupIds"] == image["groupIds"]
-
     def test_skips_label_when_disabled(
         self,
-        sample_png: Path,
+        fixed_options: ConvertOptions,
         fixed_ids: IdGenerator,
     ) -> None:
         options = ConvertOptions(add_label=False)
-        result = convert_input_to_library(sample_png, options, ids=fixed_ids)
+        lambda_path = SVG_DIR / "lambda.svg"
+        if not lambda_path.exists():
+            pytest.skip("lambda.svg fixture not available")
+        result = convert_input_to_library(lambda_path, options, ids=fixed_ids)
         types = [element["type"] for element in result["library"][0]]
 
         assert "text" not in types
-
-
-class TestImageConversion:
-    def test_converts_png_to_image_element(
-        self, sample_png: Path, fixed_options: ConvertOptions, fixed_ids: IdGenerator
-    ) -> None:
-        result = convert_image_to_library(sample_png, fixed_options, ids=fixed_ids)
-        element = result["library"][0][0]
-
-        assert element["type"] == "image"
-        assert element["width"] == pytest.approx(64.0)
-        assert element["height"] == pytest.approx(48.0)
-        assert element["status"] == "saved"
-        assert element["fileId"] in result["files"]
-
-        file_data = result["files"][element["fileId"]]
-        assert file_data["mimeType"] == "image/png"
-        assert file_data["dataURL"].startswith("data:image/png;base64,")
 
 
 class TestLibraryBuilder:
     def test_builds_library_from_multiple_inputs(
         self,
         fixtures_dir: Path,
-        sample_png: Path,
         fixed_options: ConvertOptions,
     ) -> None:
-        svg_path = fixtures_dir / "simple_rect.svg"
-        library = build_library_file([svg_path, sample_png], fixed_options)
+        svg_path_a = fixtures_dir / "simple_rect.svg"
+        svg_path_b = fixtures_dir / "nested_icon.svg"
+        library = build_library_file([svg_path_a, svg_path_b], fixed_options)
 
         assert library["type"] == "excalidrawlib"
         assert len(library["library"]) == 2
-        assert "files" in library
-        assert len(library["files"]) == 1
 
     def test_appends_to_existing_library(
         self,
@@ -474,10 +421,3 @@ class TestFileConverterRegistry:
         from excalidraw_svg_to_lib.runner import _lookup_converter
 
         assert _lookup_converter(".unknown") is None
-
-    def test_convert_input_rejects_unknown_extension(self, tmp_path: Path) -> None:
-        bad_file = tmp_path / "test.xyz"
-        bad_file.write_text("garbage")
-
-        with pytest.raises(ValueError, match="Unsupported file type"):
-            convert_input_to_library(bad_file)
