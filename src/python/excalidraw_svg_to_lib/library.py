@@ -4,9 +4,9 @@ import random
 import string
 import time
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
-from excalidraw_svg_to_lib.io import read_json, write_library_file
+from excalidraw_svg_to_lib.io import read_json
 
 
 def _random_id(length: int = 21) -> str:

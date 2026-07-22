@@ -313,7 +313,9 @@ class TestLibraryBuilder:
     ) -> None:
         existing_path = tmp_path / "existing.excalidrawlib"
         existing_path.write_text(
-            '{"type":"excalidrawlib","version":1,"library":[[{"type":"rectangle","x":0,"y":0,"width":1,"height":1}]]}\n',
+            '{"type":"excalidrawlib","version":1,'
+            '"library":[[{"type":"rectangle",'
+            '"x":0,"y":0,"width":1,"height":1}]]}\n',
             encoding="utf-8",
         )
 

@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import random
 
-import pytest
-
 from excalidraw_svg_to_lib.id_generator import IdGenerator
 
 

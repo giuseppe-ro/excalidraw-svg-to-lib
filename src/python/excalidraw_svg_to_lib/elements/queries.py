@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from excalidraw_svg_to_lib.constants import CURVE_SAMPLES
-
 Point = tuple[float, float]
 
 

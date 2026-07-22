@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import pytest
-
 from excalidraw_svg_to_lib.svg.utils import (
     inherit_style,
     local_name,

@@ -120,8 +120,9 @@ def main(argv: list[str] | None = None) -> None:
 
     output_path = resolve_output_path(args.inputs, resolved_inputs, args.output, args.append)
     write_library_file(library_file, output_path)
+    items = library_file.get('libraryItems', library_file.get('library', []))
     print(
-        f"Wrote {output_path} ({len(library_file.get('libraryItems', library_file.get('library', [])))} library item(s))",
+        f"Wrote {output_path} ({len(items)} library item(s))",
         file=sys.stderr,
     )
 
