@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Resolve project root (directory containing this script)
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "$SCRIPT_DIR"
-
 # Defaults
 INPUT="svg"
 OUTPUT=""
@@ -30,20 +26,17 @@ if [ -z "$OUTPUT" ]; then
   OUTPUT="${APPEND:-output.excalidrawlib}"
 fi
 
-# 1. Create .venv if not present
-if [ ! -d ".venv" ]; then
-  echo "Creating virtual environment (.venv)..."
-  python3 -m venv .venv
-fi
+# Detect Python and setup venv (from scripts/common.sh)
+# shellcheck source=scripts/common.sh
+source "$(dirname "$0")/scripts/common.sh"
 
-# 2. Activate .venv
-source .venv/bin/activate
+cd "$PROJECT_ROOT"
 
-# 3. Install dependencies
+# Install dependencies
 echo "Installing dependencies..."
-pip install -e "src/python[dev]" --quiet
+pip install -e "./src/python[dev]" --quiet
 
-# 4. Build the command
+# Build the command
 CMD=(python -m excalidraw_svg_to_lib "$INPUT")
 if [ -n "$APPEND" ]; then
   CMD+=(--append "$APPEND")
@@ -53,7 +46,7 @@ if [ ${#EXTRA_ARGS[@]} -gt 0 ]; then
   CMD+=("${EXTRA_ARGS[@]}")
 fi
 
-# 5. Run the converter
+# Run the converter
 echo "Converting '$INPUT' → '$OUTPUT' ..."
 "${CMD[@]}"
 

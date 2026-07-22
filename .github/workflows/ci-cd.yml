@@ -24,18 +24,10 @@ jobs:
         python-version: "3.14"
 
     - name: Install dependencies
-      run: |
-        cd src/python
-        python -m pip install --upgrade pip
-        pip install -e ".[dev]"
-        pip install flake8
+      run: bash scripts/setup.sh
 
-    - name: Lint 
-      run: |
-        cd src/python
-        flake8 . --count --show-source --statistics
+    - name: Lint
+      run: bash scripts/lint.sh
 
-    - name: Test 
-      run: |
-        cd src/python
-        pytest -v -ra --strict-config --strict-markers
+    - name: Test
+      run: bash scripts/test.sh
