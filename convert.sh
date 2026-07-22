@@ -7,16 +7,23 @@ cd "$SCRIPT_DIR"
 
 # Defaults
 INPUT="svg"
-OUTPUT="output.excalidrawlib"
+OUTPUT=""
+APPEND=""
 
-# Parse optional flags: -i (input folder) and -o (output file)
-while getopts "i:o:" opt; do
+# Parse optional flags: -i (input folder), -o (output file), -a (append to existing library)
+while getopts "i:o:a:" opt; do
   case "$opt" in
     i) INPUT="$OPTARG" ;;
     o) OUTPUT="$OPTARG" ;;
-    *) echo "Usage: $0 [-i input_folder] [-o output_file]"; exit 1 ;;
+    a) APPEND="$OPTARG" ;;
+    *) echo "Usage: $0 [-i input_folder] [-o output_file] [-a append_library]"; exit 1 ;;
   esac
 done
+
+# Resolve output: user flag > append target > default
+if [ -z "$OUTPUT" ]; then
+  OUTPUT="${APPEND:-output.excalidrawlib}"
+fi
 
 # 1. Create .venv if not present
 if [ ! -d ".venv" ]; then
@@ -31,8 +38,15 @@ source .venv/bin/activate
 echo "Installing dependencies..."
 pip install -e "src/python[dev]" --quiet
 
-# 4. Run the converter
+# 4. Build the command
+CMD=(python -m excalidraw_svg_to_lib "$INPUT")
+if [ -n "$APPEND" ]; then
+  CMD+=(--append "$APPEND")
+fi
+CMD+=(-o "$OUTPUT")
+
+# 5. Run the converter
 echo "Converting '$INPUT' → '$OUTPUT' ..."
-python -m excalidraw_svg_to_lib "$INPUT" -o "$OUTPUT"
+"${CMD[@]}"
 
 echo "Done — output written to $OUTPUT"

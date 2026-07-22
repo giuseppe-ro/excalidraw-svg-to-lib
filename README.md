@@ -19,6 +19,9 @@ The `convert.sh` script creates a virtual environment, installs dependencies, an
 
 # Custom input and output
 ./convert.sh -i svg/ -o my-icons.excalidrawlib
+
+# Append new icons to an existing library
+./convert.sh -i new-icons/ -a my-icons.excalidrawlib
 ```
 
 ## Python
