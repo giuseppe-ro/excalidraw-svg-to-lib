@@ -1,17 +1,10 @@
 from __future__ import annotations
 
-import base64
-import hashlib
 import random
-import time
 from pathlib import Path
 from typing import Any, Callable
 
-from PIL import Image
-
-from excalidraw_svg_to_lib.constants import IMAGE_MIME_TYPES, SUPPORTED_IMAGE_EXTENSIONS
 from excalidraw_svg_to_lib.elements import (
-    create_base_element,
     create_label_element,
     element_bounds,
     fit_elements_to_size,
@@ -65,69 +58,8 @@ def _convert_svg(path: Path, options: ConvertOptions, ids: IdGenerator) -> dict[
     }
 
 
-def _convert_image(path: Path, options: ConvertOptions, ids: IdGenerator) -> dict[str, Any]:
-    extension = path.suffix.lower()
-    mime_type = IMAGE_MIME_TYPES.get(extension)
-    if mime_type is None:
-        raise ValueError(f"Unsupported image format: {extension}")
-
-    data = path.read_bytes()
-    with Image.open(path) as image:
-        width, height = image.size
-
-    if width <= 0 or height <= 0:
-        raise ValueError(f"Could not read image dimensions from {path}")
-
-    file_id = hashlib.sha256(data).hexdigest()
-    now = int(time.time() * 1000)
-    data_url = f"data:{mime_type};base64,{base64.b64encode(data).decode('ascii')}"
-
-    element = create_base_element("image", ids.random_id(), ids)
-    if options.scale_to_target and options.target_icon_size > 0:
-        max_dimension = max(width, height)
-        if max_dimension > 0:
-            scale = options.target_icon_size / max_dimension
-            width *= scale
-            height *= scale
-
-    element.update(
-        {
-            "x": 0,
-            "y": 0,
-            "width": width,
-            "height": height,
-            "strokeColor": "transparent",
-            "backgroundColor": "transparent",
-            "strokeSharpness": "round",
-            "status": "saved",
-            "fileId": file_id,
-            "scale": [1, 1],
-            "crop": None,
-            "link": None,
-            "locked": False,
-            "updated": now,
-        }
-    )
-
-    return {
-        "library": [[element]],
-        "files": {
-            file_id: {
-                "mimeType": mime_type,
-                "id": file_id,
-                "dataURL": data_url,
-                "created": now,
-                "lastRetrieved": now,
-            }
-        },
-        "view_box": None,
-    }
-
-
-# Register built-in converters at import time
+# Register built-in converter at import time
 register_converter(".svg", _convert_svg)
-for _ext in SUPPORTED_IMAGE_EXTENSIONS:
-    register_converter(_ext, _convert_image)
 
 
 # ---------------------------------------------------------------------------
@@ -160,30 +92,12 @@ def convert_svg_to_library(
     }
 
 
-def convert_image_to_library(
-    input_path: str | Path,
-    options: ConvertOptions | None = None,
-    ids: IdGenerator | None = None,
-) -> dict[str, Any]:
-    """Convert a single image file into a library payload (no label added)."""
-    resolved_options = options or ConvertOptions()
-    id_generator = ids or IdGenerator()
-    result = _convert_image(Path(input_path), resolved_options, id_generator)
-
-    return {
-        "type": "excalidrawlib",
-        "version": resolved_options.format_version,
-        "library": result["library"],
-        "files": result["files"],
-    }
-
-
 def convert_input_to_library(
     input_path: str | Path,
     options: ConvertOptions | None = None,
     ids: IdGenerator | None = None,
 ) -> dict[str, Any]:
-    """Convert a single file (SVG or image) into a library payload.
+    """Convert a single SVG file into a library payload.
 
     Adds a filename label when ``options.add_label`` is *True*.
     Returns ``icon_name`` derived from the filename stem for v2 naming.
@@ -197,7 +111,7 @@ def convert_input_to_library(
     if converter is None:
         raise ValueError(
             f"Unsupported file type {extension or '(no extension)'}. "
-            "Use SVG or PNG/JPG/GIF/WebP images."
+            "Only .svg files are supported."
         )
 
     result = converter(path, resolved_options, id_generator)

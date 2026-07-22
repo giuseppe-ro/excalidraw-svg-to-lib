@@ -46,7 +46,7 @@ class TestCollectInputPathsWarnings:
 
     def test_no_warnings_when_all_supported(self, tmp_path: Path) -> None:
         (tmp_path / "a.svg").write_text("<svg/>")
-        (tmp_path / "b.png").write_bytes(b"\x89PNG")
+        (tmp_path / "b.svg").write_text("<svg/>")
 
         warnings: list[str] = []
         paths = collect_input_paths([tmp_path], warnings=warnings)
@@ -81,15 +81,13 @@ class TestCollectInputPathsWarnings:
 
 
 class TestIsSupportedIconFile:
-    @pytest.mark.parametrize("ext", [".svg", ".png", ".jpg", ".jpeg", ".gif", ".webp"])
-    def test_accepts_supported_extensions(self, ext: str) -> None:
-        assert is_supported_icon_file(f"icon{ext}")
+    def test_accepts_svg(self) -> None:
+        assert is_supported_icon_file("icon.svg")
 
-    def test_case_insensitive(self) -> None:
-        assert is_supported_icon_file("icon.PNG")
+    def test_accepts_svg_uppercase(self) -> None:
         assert is_supported_icon_file("icon.SVG")
 
-    @pytest.mark.parametrize("ext", [".txt", ".pdf", ".bmp", ".ico", ""])
+    @pytest.mark.parametrize("ext", [".txt", ".pdf", ".bmp", ".ico", "", ".png", ".jpg", ".jpeg", ".gif", ".webp"])
     def test_rejects_unsupported_extensions(self, ext: str) -> None:
         assert not is_supported_icon_file(f"file{ext}")
 
@@ -103,7 +101,7 @@ class TestCollectInputPaths:
 
         paths = collect_input_paths([tmp_path])
         names = {p.name for p in paths}
-        assert names == {"a.svg", "b.svg", "c.png"}
+        assert names == {"a.svg", "b.svg"}
 
     def test_collects_single_file(self, tmp_path: Path) -> None:
         icon = tmp_path / "icon.svg"

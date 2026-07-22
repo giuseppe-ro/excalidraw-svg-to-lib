@@ -14,12 +14,12 @@ from excalidraw_svg_to_lib.runner import convert_input_to_library
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="excalidraw-svg-to-lib",
-        description="Convert SVG or image files into an Excalidraw library (.excalidrawlib).",
+        description="Convert SVG files into an Excalidraw library (.excalidrawlib).",
     )
     parser.add_argument(
         "inputs",
         nargs="+",
-        help="Icon files or directories containing .svg / image files",
+        help="SVG files or directories containing .svg files",
     )
     parser.add_argument(
         "-o",
