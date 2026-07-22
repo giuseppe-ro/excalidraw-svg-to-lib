@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import pytest
-
 from excalidraw_svg_to_lib.svg.path_sampling import path_commands_to_points
 
 

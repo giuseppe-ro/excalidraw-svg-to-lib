@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import random
 from pathlib import Path
 from typing import Any, Callable
 
@@ -13,7 +12,7 @@ from excalidraw_svg_to_lib.elements import (
     sort_elements,
 )
 from excalidraw_svg_to_lib.id_generator import IdGenerator
-from excalidraw_svg_to_lib.io import collect_input_paths, resolve_output_path, write_library_file
+from excalidraw_svg_to_lib.io import collect_input_paths, write_library_file
 from excalidraw_svg_to_lib.library import make_library_file
 from excalidraw_svg_to_lib.options import ConvertOptions
 from excalidraw_svg_to_lib.svg import svg_to_elements

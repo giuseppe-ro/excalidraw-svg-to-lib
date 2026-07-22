@@ -84,7 +84,7 @@ def _parse_single_transform(text: str) -> Transform | None:
     """Parse a single transform function like ``translate(10, 20)``."""
     paren_idx = text.index("(")
     func = text[:paren_idx]
-    args_str = text[paren_idx + 1 :].rstrip(")")
+    args_str = text[paren_idx + 1:].rstrip(")")
     return _parse_transform_func(func, args_str)
 
 

@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 import random
-from pathlib import Path
 
 import pytest
 
 from excalidraw_svg_to_lib.id_generator import IdGenerator
 from excalidraw_svg_to_lib.svg.parser import parse_view_box, svg_to_elements
-from excalidraw_svg_to_lib.svg import svg_to_elements as public_svg_to_elements
 
 
 @pytest.fixture
@@ -93,7 +91,12 @@ class TestSvgToElements:
         assert elements[0]["height"] == 40.0
 
     def test_converts_line(self, ids: IdGenerator) -> None:
-        svg = '<svg viewBox="0 0 100 100"><line x1="10" y1="10" x2="90" y2="90" stroke="#ff0000" stroke-width="2"/></svg>'
+        svg = (
+            '<svg viewBox="0 0 100 100">'
+            '<line x1="10" y1="10" x2="90" y2="90" '
+            'stroke="#ff0000" stroke-width="2"/>'
+            '</svg>'
+        )
         elements, _ = svg_to_elements(svg, ids)
 
         assert len(elements) == 1
@@ -173,7 +176,12 @@ class TestSvgToElements:
             svg_to_elements("<root></root>", ids)
 
     def test_handles_namespace_in_svg_root(self, ids: IdGenerator) -> None:
-        svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect x="0" y="0" width="10" height="10" fill="#ff0000"/></svg>'
+        svg = (
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">'
+            '<rect x="0" y="0" width="10" height="10" '
+            'fill="#ff0000"/>'
+            '</svg>'
+        )
         elements, _ = svg_to_elements(svg, ids)
         assert len(elements) == 1
 
@@ -187,7 +195,12 @@ class TestSvgToElements:
         assert len(group_ids) == 1
 
     def test_handles_path_element(self, ids: IdGenerator) -> None:
-        svg = '<svg viewBox="0 0 100 100"><path d="M 10 10 L 90 10 L 90 90" fill="none" stroke="#ff0000" stroke-width="2"/></svg>'
+        svg = (
+            '<svg viewBox="0 0 100 100">'
+            '<path d="M 10 10 L 90 10 L 90 90" '
+            'fill="none" stroke="#ff0000" stroke-width="2"/>'
+            '</svg>'
+        )
         elements, _ = svg_to_elements(svg, ids)
         assert len(elements) == 1
         assert elements[0]["type"] == "line"

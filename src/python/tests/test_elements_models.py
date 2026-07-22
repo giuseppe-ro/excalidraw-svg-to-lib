@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import random
-from typing import Any
-
 import pytest
 
 from excalidraw_svg_to_lib.elements.models import (
