@@ -69,11 +69,16 @@ def main(argv: list[str] | None = None) -> None:
         format_version=1 if args.v1 else 2,
     )
 
+    warnings: list[str] = []
     try:
-        resolved_inputs = collect_input_paths(args.inputs)
+        resolved_inputs = collect_input_paths(args.inputs, warnings=warnings)
     except (FileNotFoundError, ValueError) as error:
         print(f"Error: {error}", file=sys.stderr)
         raise SystemExit(1) from error
+
+    # Print warnings about skipped files
+    for warning in warnings:
+        print(warning, file=sys.stderr)
 
     if not resolved_inputs:
         print("Error: no supported icon files to convert.", file=sys.stderr)

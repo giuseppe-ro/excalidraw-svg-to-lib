@@ -16,6 +16,70 @@ from excalidraw_svg_to_lib.io import (
 )
 
 
+class TestCollectInputPathsWarnings:
+    """collect_input_paths warns about skipped non-supported files."""
+
+    def test_warns_about_unsupported_files_in_directory(self, tmp_path: Path) -> None:
+        (tmp_path / "a.svg").write_text("<svg/>")
+        (tmp_path / "b.txt").write_text("skip me")
+        (tmp_path / "c.pdf").write_bytes(b"%PDF")
+
+        warnings: list[str] = []
+        paths = collect_input_paths([tmp_path], warnings=warnings)
+
+        names = {p.name for p in paths}
+        assert names == {"a.svg"}
+        assert len(warnings) == 2
+        assert any("b.txt" in w for w in warnings)
+        assert any("c.pdf" in w for w in warnings)
+
+    def test_warns_about_unsupported_single_file(self, tmp_path: Path) -> None:
+        bad = tmp_path / "icon.txt"
+        bad.write_text("not an icon")
+
+        warnings: list[str] = []
+        paths = collect_input_paths([bad], warnings=warnings)
+
+        assert len(paths) == 0
+        assert len(warnings) == 1
+        assert "icon.txt" in warnings[0]
+
+    def test_no_warnings_when_all_supported(self, tmp_path: Path) -> None:
+        (tmp_path / "a.svg").write_text("<svg/>")
+        (tmp_path / "b.png").write_bytes(b"\x89PNG")
+
+        warnings: list[str] = []
+        paths = collect_input_paths([tmp_path], warnings=warnings)
+
+        assert len(paths) == 2
+        assert len(warnings) == 0
+
+    def test_mixed_valid_and_invalid_files(self, tmp_path: Path) -> None:
+        icon_dir = tmp_path / "icons"
+        icon_dir.mkdir()
+        (icon_dir / "good.svg").write_text("<svg/>")
+        (icon_dir / "bad.txt").write_text("nope")
+        standalone_bad = tmp_path / "standalone.pdf"
+        standalone_bad.write_bytes(b"%PDF")
+
+        warnings: list[str] = []
+        paths = collect_input_paths([icon_dir, standalone_bad], warnings=warnings)
+
+        names = {p.name for p in paths}
+        assert names == {"good.svg"}
+        assert len(warnings) == 2  # bad.txt from dir + standalone.pdf
+
+    def test_no_warnings_collected_when_not_requested(self, tmp_path: Path) -> None:
+        """Backward compat: without warnings arg, no warnings are tracked."""
+        (tmp_path / "a.svg").write_text("<svg/>")
+        (tmp_path / "b.txt").write_text("skip")
+
+        paths = collect_input_paths([tmp_path])
+
+        names = {p.name for p in paths}
+        assert names == {"a.svg"}
+
+
 class TestIsSupportedIconFile:
     @pytest.mark.parametrize("ext", [".svg", ".png", ".jpg", ".jpeg", ".gif", ".webp"])
     def test_accepts_supported_extensions(self, ext: str) -> None:
