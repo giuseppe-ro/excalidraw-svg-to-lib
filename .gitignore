@@ -233,5 +233,5 @@ ehthumbs.db
 .directory
 
 # project
-output.excalidrawlib
+*.excalidrawlib
 svg/*
