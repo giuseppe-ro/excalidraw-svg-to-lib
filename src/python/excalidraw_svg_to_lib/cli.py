@@ -1,18 +1,14 @@
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from pathlib import Path
 
-from excalidraw_svg_to_lib.converter import (
-    convert_input_to_library,
-    resolve_output_path,
-    write_library_file,
-)
 from excalidraw_svg_to_lib.id_generator import IdGenerator
+from excalidraw_svg_to_lib.io import collect_input_paths, resolve_output_path, write_library_file
+from excalidraw_svg_to_lib.library import append_to_existing, make_library_file
 from excalidraw_svg_to_lib.options import ConvertOptions
-from excalidraw_svg_to_lib.paths import collect_input_paths
+from excalidraw_svg_to_lib.runner import convert_input_to_library
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -82,7 +78,7 @@ def main(argv: list[str] | None = None) -> None:
 
     library_items = []
     files = {}
-    id_generator = IdGenerator(options)
+    id_generator = IdGenerator()
 
     for input_path in resolved_inputs:
         try:
@@ -97,26 +93,11 @@ def main(argv: list[str] | None = None) -> None:
             print(f"Error converting {input_path.name}: {error}", file=sys.stderr)
             raise SystemExit(1) from error
 
-    library_file: dict[str, object] = {
-        "type": "excalidrawlib",
-        "version": 1,
-        "library": library_items,
-    }
-    if files:
-        library_file["files"] = files
+    library_file = make_library_file(library_items, files or None)
 
     append_path = Path(args.append) if args.append else None
     if append_path is not None:
-        existing = json.loads(append_path.read_text(encoding="utf-8"))
-        if existing.get("type") != "excalidrawlib" or not isinstance(existing.get("library"), list):
-            print(f"Error: Invalid library file: {append_path}", file=sys.stderr)
-            raise SystemExit(1)
-
-        library_file = {
-            **existing,
-            "library": [*existing["library"], *library_items],
-            "files": {**(existing.get("files") or {}), **files},
-        }
+        library_file = append_to_existing(library_file, append_path)
 
     output_path = resolve_output_path(args.inputs, resolved_inputs, args.output, args.append)
     write_library_file(library_file, output_path)

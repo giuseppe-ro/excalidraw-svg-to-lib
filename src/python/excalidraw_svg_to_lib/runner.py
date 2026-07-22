@@ -1,0 +1,246 @@
+from __future__ import annotations
+
+import base64
+import hashlib
+import random
+import time
+from pathlib import Path
+from typing import Any, Callable
+
+from PIL import Image
+
+from excalidraw_svg_to_lib.constants import IMAGE_MIME_TYPES, SUPPORTED_IMAGE_EXTENSIONS
+from excalidraw_svg_to_lib.elements import (
+    create_base_element,
+    create_label_element,
+    element_bounds,
+    fit_elements_to_size,
+    icon_group_id,
+    normalize_elements,
+    sort_elements,
+)
+from excalidraw_svg_to_lib.id_generator import IdGenerator
+from excalidraw_svg_to_lib.io import collect_input_paths, resolve_output_path, write_library_file
+from excalidraw_svg_to_lib.library import append_to_existing, make_library_file
+from excalidraw_svg_to_lib.options import ConvertOptions
+from excalidraw_svg_to_lib.svg import svg_to_elements
+
+
+# ---------------------------------------------------------------------------
+# File-converter registry (OCP — new formats register without modifying this)
+# ---------------------------------------------------------------------------
+
+FileConverter = Callable[[Path, ConvertOptions, IdGenerator], dict[str, Any]]
+
+_FILE_CONVERTERS: dict[str, FileConverter] = {}
+
+
+def register_converter(extension: str, converter: FileConverter) -> None:
+    """Register a converter for a file extension (e.g. ``'.svg'``)."""
+    _FILE_CONVERTERS[extension] = converter
+
+
+def _lookup_converter(extension: str) -> FileConverter | None:
+    return _FILE_CONVERTERS.get(extension)
+
+
+# ---------------------------------------------------------------------------
+# Built-in converters
+# ---------------------------------------------------------------------------
+
+
+def _convert_svg(path: Path, options: ConvertOptions, ids: IdGenerator) -> dict[str, Any]:
+    elements, view_box = svg_to_elements(path.read_text(encoding="utf-8"), ids)
+
+    if options.normalize:
+        elements = normalize_elements(elements)
+
+    if options.scale_to_target:
+        elements = fit_elements_to_size(elements, options.target_icon_size)
+
+    return {
+        "library": [sort_elements(elements)],
+        "files": {},
+        "view_box": view_box,
+    }
+
+
+def _convert_image(path: Path, options: ConvertOptions, ids: IdGenerator) -> dict[str, Any]:
+    extension = path.suffix.lower()
+    mime_type = IMAGE_MIME_TYPES.get(extension)
+    if mime_type is None:
+        raise ValueError(f"Unsupported image format: {extension}")
+
+    data = path.read_bytes()
+    with Image.open(path) as image:
+        width, height = image.size
+
+    if width <= 0 or height <= 0:
+        raise ValueError(f"Could not read image dimensions from {path}")
+
+    file_id = hashlib.sha256(data).hexdigest()
+    now = int(time.time() * 1000)
+    data_url = f"data:{mime_type};base64,{base64.b64encode(data).decode('ascii')}"
+
+    element = create_base_element("image", ids.random_id(), ids)
+    if options.scale_to_target and options.target_icon_size > 0:
+        max_dimension = max(width, height)
+        if max_dimension > 0:
+            scale = options.target_icon_size / max_dimension
+            width *= scale
+            height *= scale
+
+    element.update(
+        {
+            "x": 0,
+            "y": 0,
+            "width": width,
+            "height": height,
+            "strokeColor": "transparent",
+            "backgroundColor": "transparent",
+            "strokeSharpness": "round",
+            "status": "saved",
+            "fileId": file_id,
+            "scale": [1, 1],
+            "crop": None,
+            "link": None,
+            "locked": False,
+            "updated": now,
+        }
+    )
+
+    return {
+        "library": [[element]],
+        "files": {
+            file_id: {
+                "mimeType": mime_type,
+                "id": file_id,
+                "dataURL": data_url,
+                "created": now,
+                "lastRetrieved": now,
+            }
+        },
+        "view_box": None,
+    }
+
+
+# Register built-in converters at import time
+register_converter(".svg", _convert_svg)
+for _ext in SUPPORTED_IMAGE_EXTENSIONS:
+    register_converter(_ext, _convert_image)
+
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
+
+
+def convert_svg_to_library(
+    svg_content: str,
+    options: ConvertOptions | None = None,
+    ids: IdGenerator | None = None,
+) -> dict[str, Any]:
+    """Convert raw SVG text into a library payload (no label added)."""
+    resolved_options = options or ConvertOptions()
+    id_generator = ids or IdGenerator()
+    elements, view_box = svg_to_elements(svg_content, id_generator)
+
+    if resolved_options.normalize:
+        elements = normalize_elements(elements)
+
+    if resolved_options.scale_to_target:
+        elements = fit_elements_to_size(elements, resolved_options.target_icon_size)
+
+    return {
+        "type": "excalidrawlib",
+        "version": 1,
+        "library": [sort_elements(elements)],
+        "files": {},
+        "view_box": view_box,
+    }
+
+
+def convert_image_to_library(
+    input_path: str | Path,
+    options: ConvertOptions | None = None,
+    ids: IdGenerator | None = None,
+) -> dict[str, Any]:
+    """Convert a single image file into a library payload (no label added)."""
+    resolved_options = options or ConvertOptions()
+    id_generator = ids or IdGenerator()
+    result = _convert_image(Path(input_path), resolved_options, id_generator)
+
+    return {
+        "type": "excalidrawlib",
+        "version": 1,
+        "library": result["library"],
+        "files": result["files"],
+    }
+
+
+def convert_input_to_library(
+    input_path: str | Path,
+    options: ConvertOptions | None = None,
+    ids: IdGenerator | None = None,
+) -> dict[str, Any]:
+    """Convert a single file (SVG or image) into a library payload.
+
+    Adds a filename label when ``options.add_label`` is *True*.
+    """
+    path = Path(input_path)
+    extension = path.suffix.lower()
+    resolved_options = options or ConvertOptions()
+    id_generator = ids or IdGenerator()
+
+    converter = _lookup_converter(extension)
+    if converter is None:
+        raise ValueError(
+            f"Unsupported file type {extension or '(no extension)'}. "
+            "Use SVG or PNG/JPG/GIF/WebP images."
+        )
+
+    result = converter(path, resolved_options, id_generator)
+
+    if resolved_options.add_label:
+        elements = result["library"][0]
+        bounds = element_bounds(elements)
+        group_id = icon_group_id(elements)
+        elements.append(create_label_element(path.stem, bounds, id_generator, group_id))
+        result["library"][0] = sort_elements(elements)
+
+    return {
+        "type": "excalidrawlib",
+        "version": 1,
+        "library": result["library"],
+        "files": result["files"],
+    }
+
+
+def build_library_file(
+    input_paths: list[str | Path],
+    options: ConvertOptions | None = None,
+    append_path: str | Path | None = None,
+    output_path: str | Path | None = None,
+) -> dict[str, Any]:
+    resolved_inputs = collect_input_paths(input_paths)
+    if not resolved_inputs:
+        raise ValueError("No supported icon files to convert.")
+
+    library_items: list[list[dict[str, Any]]] = []
+    files: dict[str, Any] = {}
+    id_generator = IdGenerator()
+
+    for input_path in resolved_inputs:
+        converted = convert_input_to_library(input_path, options, ids=id_generator)
+        library_items.append(converted["library"][0])
+        files.update(converted.get("files", {}))
+
+    library_file = make_library_file(library_items, files or None)
+
+    if append_path is not None:
+        library_file = append_to_existing(library_file, append_path)
+
+    if output_path is not None:
+        write_library_file(library_file, output_path)
+
+    return library_file

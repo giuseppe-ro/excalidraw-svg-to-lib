@@ -3,21 +3,21 @@ from __future__ import annotations
 import random
 import string
 
-from excalidraw_svg_to_lib.options import ConvertOptions
-
 
 class IdGenerator:
-    def __init__(self, options: ConvertOptions | None = None) -> None:
-        self._options = options or ConvertOptions()
-        self._random = random.Random(0)
+    """Generate random IDs and integers for Excalidraw elements.
+
+    Accepts a seeded ``random.Random`` instance for deterministic output
+    (useful in tests).  Falls back to a fresh unseeded generator when
+    ``rng`` is *None*.
+    """
+
+    def __init__(self, rng: random.Random | None = None) -> None:
+        self._random = rng if rng is not None else random.Random()
 
     def random_id(self) -> str:
-        if self._options.id_factory is not None:
-            return self._options.id_factory()
         alphabet = string.ascii_letters + string.digits + "_-"
         return "".join(self._random.choice(alphabet) for _ in range(21))
 
     def random_int(self, maximum: int = 2**31) -> int:
-        if self._options.int_factory is not None:
-            return self._options.int_factory()
         return self._random.randrange(maximum)

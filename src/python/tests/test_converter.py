@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import random
 from pathlib import Path
 
 import pytest
@@ -11,14 +12,19 @@ from excalidraw_svg_to_lib.constants import (
     DEFAULT_LABEL_FONT_SIZE,
     DEFAULT_LABEL_GAP,
     DEFAULT_TARGET_ICON_SIZE,
-    SUPPORTED_ICON_EXTENSIONS,
 )
-from excalidraw_svg_to_lib.converter import (
+from excalidraw_svg_to_lib.io import (
+    collect_input_paths,
+    default_output_path,
+    is_supported_icon_file,
+)
+from excalidraw_svg_to_lib.runner import (
     build_library_file,
     convert_image_to_library,
     convert_input_to_library,
     convert_svg_to_library,
 )
+from excalidraw_svg_to_lib.id_generator import IdGenerator
 from excalidraw_svg_to_lib.options import ConvertOptions
 from excalidraw_svg_to_lib.elements import (
     element_bounds,
@@ -28,30 +34,16 @@ from excalidraw_svg_to_lib.elements import (
     scale_elements,
     sort_elements,
 )
-from excalidraw_svg_to_lib.paths import (
-    collect_input_paths,
-    default_output_path,
-    is_supported_icon_file,
-)
 
 
 @pytest.fixture
 def fixed_options() -> ConvertOptions:
-    counter = {"value": 0}
+    return ConvertOptions(normalize=True)
 
-    def next_id() -> str:
-        counter["value"] += 1
-        return f"fixed-id-{counter['value']:03d}"
 
-    def next_int() -> int:
-        counter["value"] += 1
-        return counter["value"]
-
-    return ConvertOptions(
-        normalize=True,
-        id_factory=next_id,
-        int_factory=next_int,
-    )
+@pytest.fixture
+def fixed_ids() -> IdGenerator:
+    return IdGenerator(rng=random.Random(42))
 
 
 @pytest.fixture
@@ -116,8 +108,10 @@ class TestPathCollection:
 
 
 class TestSvgConversion:
-    def test_converts_simple_rectangle(self, simple_rect_svg: str, fixed_options: ConvertOptions) -> None:
-        result = convert_svg_to_library(simple_rect_svg, fixed_options)
+    def test_converts_simple_rectangle(
+        self, simple_rect_svg: str, fixed_options: ConvertOptions, fixed_ids: IdGenerator
+    ) -> None:
+        result = convert_svg_to_library(simple_rect_svg, fixed_options, ids=fixed_ids)
 
         assert result["type"] == "excalidrawlib"
         assert result["version"] == 1
@@ -133,25 +127,26 @@ class TestSvgConversion:
         assert rectangle["x"] == 0
         assert rectangle["y"] == 0
 
-    def test_normalizes_elements_to_origin(self, simple_rect_svg: str, fixed_options: ConvertOptions) -> None:
-        result = convert_svg_to_library(simple_rect_svg, fixed_options)
+    def test_normalizes_elements_to_origin(
+        self, simple_rect_svg: str, fixed_options: ConvertOptions, fixed_ids: IdGenerator
+    ) -> None:
+        result = convert_svg_to_library(simple_rect_svg, fixed_options, ids=fixed_ids)
         rectangle = result["library"][0][0]
         assert rectangle["x"] == 0
         assert rectangle["y"] == 0
 
-        options = ConvertOptions(
-            normalize=False,
-            scale_to_target=False,
-            id_factory=fixed_options.id_factory,
-            int_factory=fixed_options.int_factory,
+        unnormalized_options = ConvertOptions(normalize=False, scale_to_target=False)
+        unnormalized = convert_svg_to_library(
+            simple_rect_svg, unnormalized_options, ids=IdGenerator(rng=random.Random(42))
         )
-        unnormalized = convert_svg_to_library(simple_rect_svg, options)
         raw_rectangle = unnormalized["library"][0][0]
         assert raw_rectangle["x"] == 4
         assert raw_rectangle["y"] == 6
 
-    def test_converts_nested_groups(self, nested_icon_svg: str, fixed_options: ConvertOptions) -> None:
-        result = convert_svg_to_library(nested_icon_svg, fixed_options)
+    def test_converts_nested_groups(
+        self, nested_icon_svg: str, fixed_options: ConvertOptions, fixed_ids: IdGenerator
+    ) -> None:
+        result = convert_svg_to_library(nested_icon_svg, fixed_options, ids=fixed_ids)
         elements = result["library"][0]
         types = [element["type"] for element in elements]
 
@@ -159,19 +154,22 @@ class TestSvgConversion:
         assert "ellipse" in types
         assert elements[0]["backgroundColor"] == "#E7157B"
 
-    def test_rejects_invalid_svg(self, fixed_options: ConvertOptions) -> None:
+    def test_rejects_invalid_svg(
+        self, fixed_options: ConvertOptions, fixed_ids: IdGenerator
+    ) -> None:
         with pytest.raises(ValueError, match="missing <svg>"):
-            convert_svg_to_library("<root></root>", fixed_options)
+            convert_svg_to_library("<root></root>", fixed_options, ids=fixed_ids)
 
     def test_aws_sns_icon_has_expected_structure(
         self,
         fixed_options: ConvertOptions,
+        fixed_ids: IdGenerator,
     ) -> None:
         sns_path = SVG_DIR / "sns.svg"
         if not sns_path.exists():
             pytest.skip("AWS SNS fixture not available")
 
-        result = convert_input_to_library(sns_path, fixed_options)
+        result = convert_input_to_library(sns_path, fixed_options, ids=fixed_ids)
         elements = result["library"][0]
         types = [element["type"] for element in elements]
 
@@ -186,12 +184,13 @@ class TestLabelConversion:
     def test_adds_filename_label_to_svg(
         self,
         fixed_options: ConvertOptions,
+        fixed_ids: IdGenerator,
     ) -> None:
         lambda_path = SVG_DIR / "lambda.svg"
         if not lambda_path.exists():
             pytest.skip("lambda.svg fixture not available")
 
-        result = convert_input_to_library(lambda_path, fixed_options)
+        result = convert_input_to_library(lambda_path, fixed_options, ids=fixed_ids)
         elements = result["library"][0]
         text = elements[-1]
 
@@ -205,12 +204,13 @@ class TestLabelConversion:
     def test_label_is_centered_below_icon(
         self,
         fixed_options: ConvertOptions,
+        fixed_ids: IdGenerator,
     ) -> None:
         lambda_path = SVG_DIR / "lambda.svg"
         if not lambda_path.exists():
             pytest.skip("lambda.svg fixture not available")
 
-        result = convert_input_to_library(lambda_path, fixed_options)
+        result = convert_input_to_library(lambda_path, fixed_options, ids=fixed_ids)
         shapes = [element for element in result["library"][0] if element["type"] != "text"]
         text = result["library"][0][-1]
 
@@ -223,12 +223,13 @@ class TestLabelConversion:
     def test_scales_lambda_icon_to_target_size(
         self,
         fixed_options: ConvertOptions,
+        fixed_ids: IdGenerator,
     ) -> None:
         lambda_path = SVG_DIR / "lambda.svg"
         if not lambda_path.exists():
             pytest.skip("lambda.svg fixture not available")
 
-        result = convert_input_to_library(lambda_path, fixed_options)
+        result = convert_input_to_library(lambda_path, fixed_options, ids=fixed_ids)
         shapes = [element for element in result["library"][0] if element["type"] != "text"]
         text = result["library"][0][-1]
 
@@ -239,12 +240,13 @@ class TestLabelConversion:
     def test_scales_spaceship_icon_to_target_size(
         self,
         fixed_options: ConvertOptions,
+        fixed_ids: IdGenerator,
     ) -> None:
         spaceship_path = SVG_DIR / "spaceship.svg"
         if not spaceship_path.exists():
             pytest.skip("spaceship.svg fixture not available")
 
-        result = convert_input_to_library(spaceship_path, fixed_options)
+        result = convert_input_to_library(spaceship_path, fixed_options, ids=fixed_ids)
         shapes = [element for element in result["library"][0] if element["type"] != "text"]
         text = result["library"][0][-1]
 
@@ -259,12 +261,13 @@ class TestLabelConversion:
     def test_sns_icon_stays_at_target_size(
         self,
         fixed_options: ConvertOptions,
+        fixed_ids: IdGenerator,
     ) -> None:
         sns_path = SVG_DIR / "sns.svg"
         if not sns_path.exists():
             pytest.skip("sns.svg fixture not available")
 
-        result = convert_input_to_library(sns_path, fixed_options)
+        result = convert_input_to_library(sns_path, fixed_options, ids=fixed_ids)
         shapes = [element for element in result["library"][0] if element["type"] != "text"]
 
         _, _, max_x, max_y = element_bounds(shapes)
@@ -276,8 +279,9 @@ class TestLabelConversion:
         self,
         simple_rect_svg: str,
         fixed_options: ConvertOptions,
+        fixed_ids: IdGenerator,
     ) -> None:
-        result = convert_svg_to_library(simple_rect_svg, fixed_options)
+        result = convert_svg_to_library(simple_rect_svg, fixed_options, ids=fixed_ids)
         types = [element["type"] for element in result["library"][0]]
 
         assert "text" not in types
@@ -286,8 +290,9 @@ class TestLabelConversion:
         self,
         sample_png: Path,
         fixed_options: ConvertOptions,
+        fixed_ids: IdGenerator,
     ) -> None:
-        result = convert_input_to_library(sample_png, fixed_options)
+        result = convert_input_to_library(sample_png, fixed_options, ids=fixed_ids)
         text = result["library"][0][-1]
 
         assert text["type"] == "text"
@@ -297,8 +302,9 @@ class TestLabelConversion:
         self,
         sample_png: Path,
         fixed_options: ConvertOptions,
+        fixed_ids: IdGenerator,
     ) -> None:
-        result = convert_input_to_library(sample_png, fixed_options)
+        result = convert_input_to_library(sample_png, fixed_options, ids=fixed_ids)
         elements = result["library"][0]
         image = elements[0]
         text = elements[-1]
@@ -310,23 +316,20 @@ class TestLabelConversion:
     def test_skips_label_when_disabled(
         self,
         sample_png: Path,
-        fixed_options: ConvertOptions,
+        fixed_ids: IdGenerator,
     ) -> None:
-        options = ConvertOptions(
-            normalize=fixed_options.normalize,
-            add_label=False,
-            id_factory=fixed_options.id_factory,
-            int_factory=fixed_options.int_factory,
-        )
-        result = convert_input_to_library(sample_png, options)
+        options = ConvertOptions(add_label=False)
+        result = convert_input_to_library(sample_png, options, ids=fixed_ids)
         types = [element["type"] for element in result["library"][0]]
 
         assert "text" not in types
 
 
 class TestImageConversion:
-    def test_converts_png_to_image_element(self, sample_png: Path, fixed_options: ConvertOptions) -> None:
-        result = convert_image_to_library(sample_png, fixed_options)
+    def test_converts_png_to_image_element(
+        self, sample_png: Path, fixed_options: ConvertOptions, fixed_ids: IdGenerator
+    ) -> None:
+        result = convert_image_to_library(sample_png, fixed_options, ids=fixed_ids)
         element = result["library"][0][0]
 
         assert element["type"] == "image"
@@ -449,3 +452,32 @@ class TestElementHelpers:
 
         line_points = [(0, 0), (20, 0), (20, 1)]
         assert not is_circle_like(line_points)
+
+
+class TestFileConverterRegistry:
+    def test_register_and_lookup_svg(self) -> None:
+        from excalidraw_svg_to_lib.runner import _lookup_converter, register_converter
+
+        called = []
+
+        def dummy(path, opts, ids):
+            called.append(True)
+            return {"library": [[]], "files": {}, "view_box": None}
+
+        register_converter(".custom", dummy)
+        converter = _lookup_converter(".custom")
+        assert converter is not None
+        converter(Path("test.custom"), ConvertOptions(), IdGenerator())
+        assert called == [True]
+
+    def test_lookup_missing_extension_returns_none(self) -> None:
+        from excalidraw_svg_to_lib.runner import _lookup_converter
+
+        assert _lookup_converter(".unknown") is None
+
+    def test_convert_input_rejects_unknown_extension(self, tmp_path: Path) -> None:
+        bad_file = tmp_path / "test.xyz"
+        bad_file.write_text("garbage")
+
+        with pytest.raises(ValueError, match="Unsupported file type"):
+            convert_input_to_library(bad_file)

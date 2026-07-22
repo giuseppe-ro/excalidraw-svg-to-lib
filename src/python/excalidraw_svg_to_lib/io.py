@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from excalidraw_svg_to_lib.constants import SUPPORTED_ICON_EXTENSIONS
@@ -49,3 +50,40 @@ def default_output_path(raw_inputs: list[str | Path], resolved_inputs: list[Path
         return f"{resolved_inputs[0].stem}.excalidrawlib"
 
     return "icons.excalidrawlib"
+
+
+def resolve_output_path(
+    raw_inputs: list[str | Path],
+    resolved_inputs: list[Path],
+    output_path: str | Path | None,
+    append_path: str | Path | None,
+) -> Path:
+    if output_path is not None:
+        return Path(output_path)
+    if append_path is not None:
+        return Path(append_path)
+    return Path(default_output_path(raw_inputs, resolved_inputs))
+
+
+def read_text(path: str | Path) -> str:
+    return Path(path).read_text(encoding="utf-8")
+
+
+def read_json(path: str | Path) -> dict:
+    return json.loads(read_text(path))
+
+
+def write_library_file(
+    library_file: dict,
+    output_path: str | Path,
+    *,
+    exclude_keys: tuple[str, ...] = ("metadata",),
+) -> None:
+    payload = {
+        key: value
+        for key, value in library_file.items()
+        if key not in exclude_keys
+    }
+    out = Path(output_path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(f"{json.dumps(payload, indent=2)}\n", encoding="utf-8")
