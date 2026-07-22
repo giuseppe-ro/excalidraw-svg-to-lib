@@ -17,6 +17,7 @@ from excalidraw_svg_to_lib.paths import collect_input_paths
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
+        prog="excalidraw-svg-to-lib",
         description="Convert SVG or image files into an Excalidraw library (.excalidrawlib).",
     )
     parser.add_argument(
