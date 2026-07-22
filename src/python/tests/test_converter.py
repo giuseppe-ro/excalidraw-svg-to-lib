@@ -7,20 +7,20 @@ from PIL import Image
 
 from tests.conftest import FIXTURES_DIR, SVG_DIR
 
-from svg_to_excalidrawlib.constants import (
+from excalidraw_svg_to_lib.constants import (
     DEFAULT_LABEL_FONT_SIZE,
     DEFAULT_LABEL_GAP,
     DEFAULT_TARGET_ICON_SIZE,
     SUPPORTED_ICON_EXTENSIONS,
 )
-from svg_to_excalidrawlib.converter import (
+from excalidraw_svg_to_lib.converter import (
     build_library_file,
     convert_image_to_library,
     convert_input_to_library,
     convert_svg_to_library,
 )
-from svg_to_excalidrawlib.options import ConvertOptions
-from svg_to_excalidrawlib.elements import (
+from excalidraw_svg_to_lib.options import ConvertOptions
+from excalidraw_svg_to_lib.elements import (
     element_bounds,
     fit_elements_to_size,
     is_circle_like,
@@ -28,7 +28,7 @@ from svg_to_excalidrawlib.elements import (
     scale_elements,
     sort_elements,
 )
-from svg_to_excalidrawlib.paths import (
+from excalidraw_svg_to_lib.paths import (
     collect_input_paths,
     default_output_path,
     is_supported_icon_file,

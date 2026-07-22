@@ -5,14 +5,14 @@ import json
 import sys
 from pathlib import Path
 
-from svg_to_excalidrawlib.converter import (
+from excalidraw_svg_to_lib.converter import (
     convert_input_to_library,
     resolve_output_path,
     write_library_file,
 )
-from svg_to_excalidrawlib.id_generator import IdGenerator
-from svg_to_excalidrawlib.options import ConvertOptions
-from svg_to_excalidrawlib.paths import collect_input_paths
+from excalidraw_svg_to_lib.id_generator import IdGenerator
+from excalidraw_svg_to_lib.options import ConvertOptions
+from excalidraw_svg_to_lib.paths import collect_input_paths
 
 
 def build_parser() -> argparse.ArgumentParser:

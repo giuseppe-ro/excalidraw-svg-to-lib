@@ -3,7 +3,7 @@ requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "svg-to-excalidrawlib"
+name = "excalidraw-svg-to-lib"
 version = "1.0.0"
 description = "Convert SVG and image files into Excalidraw library format"
 requires-python = ">=3.11"
@@ -18,7 +18,7 @@ dev = [
 ]
 
 [project.scripts]
-svg-to-excalidrawlib = "svg_to_excalidrawlib.cli:main"
+excalidraw-svg-to-lib = "excalidraw_svg_to_lib.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable
 
-from svg_to_excalidrawlib.constants import DEFAULT_TARGET_ICON_SIZE
+from excalidraw_svg_to_lib.constants import DEFAULT_TARGET_ICON_SIZE
 
 
 @dataclass(frozen=True)
