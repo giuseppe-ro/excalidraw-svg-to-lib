@@ -1,6 +1,6 @@
 # SVG to Excalidraw Library
 
-Convert SVG and image icons into Excalidraw `.excalidrawlib` files.
+Convert SVG icons into Excalidraw `.excalidrawlib` files.
 
 ## Project layout
 
@@ -27,14 +27,14 @@ The `convert.sh` script creates a virtual environment, installs dependencies, an
 cd src/python
 pip install -e ".[dev]"
 pytest
-python -m excalidraw_svg_to_lib ../../svg/ -o ../../aws-icons.excalidrawlib
+python -m excalidraw_svg_to_lib ../../svg/ -o ../../icons.excalidrawlib
 ```
 
 ## Inputs
 
 Each CLI accepts:
 
-- individual files (`.svg`, `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`)
+- individual files (`.svg`)
 - a directory (all supported icons in that folder, non-recursive)
 
 Examples:
