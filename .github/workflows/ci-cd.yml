@@ -1,0 +1,37 @@
+name: ci-cd
+
+on:
+  workflow_dispatch: # manual trigger
+  push:
+  #   branches: [ "main" ]
+  # pull_request:
+  #   branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python 3.14
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.14"
+    - name: Install dependencies
+      run: |
+        cd src/python
+        python -m pip install --upgrade pip
+        pip install -e ".[dev]"
+        pip install flake8
+    - name: Lint with flake8
+      run: |
+        cd src/python
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+    - name: Test with pytest
+      run: |
+        cd src/python
+        pytest --strict-config --strict-markers
