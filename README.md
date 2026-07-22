@@ -73,6 +73,40 @@ python -m excalidraw_svg_to_lib new-icons/ --append icons.excalidrawlib -o merge
 
 Works with both v1 and v2 library formats, including cross-format merges.
 
+## CLI Options
+
+| Flag | Default | Description |
+|---|---|---|
+| `-o`, `--output` | auto | Output `.excalidrawlib` file path |
+| `--append` | — | Append to an existing library file |
+| `--no-normalize` | normalize | Keep original SVG coordinates |
+| `--no-label` | add labels | Skip filename labels below icons |
+| `--no-scale` | scale to target | Keep original icon dimensions |
+| `--target-size` | `64` | Scale icons to this max dimension |
+| `--stroke-width` | `0.5` | Uniform stroke width for all elements (overrides SVG values) |
+| `--v1` | v2 | Use legacy v1 library format |
+
+### Custom stroke width
+
+Use `--stroke-width` to set a uniform stroke width for all elements, overriding the
+original SVG stroke-width values:
+
+```bash
+# Thinner strokes for cleaner icons
+python -m excalidraw_svg_to_lib svg/ -o icons.excalidrawlib --stroke-width 0.5
+
+# Thicker strokes
+python -m excalidraw_svg_to_lib svg/ -o icons.excalidrawlib --stroke-width 2
+```
+
+### Shell script
+
+The `convert.sh` script supports passing extra flags through:
+
+```bash
+./convert.sh -i svg/ -o icons.excalidrawlib --stroke-width 1 --no-scale
+```
+
 ## Output formats
 
 ### v2 — Searchable library items (default)
