@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "svg-to-excalidrawlib"
+version = "1.0.0"
+description = "Convert SVG and image files into Excalidraw library format"
+requires-python = ">=3.11"
+dependencies = [
+  "Pillow>=10.0.0",
+  "svg.path>=6.3",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+]
+
+[project.scripts]
+svg-to-excalidrawlib = "svg_to_excalidrawlib.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
