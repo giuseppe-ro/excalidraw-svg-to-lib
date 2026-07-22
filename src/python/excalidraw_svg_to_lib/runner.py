@@ -132,7 +132,6 @@ def convert_input_to_library(
         group_id = icon_group_id(elements)
 
         min_x, min_y, max_x, max_y = bounds
-        icon_height = max_y - min_y
 
         # Invisible outer box (inserted first so it sorts behind the icon)
         invisible_box = create_invisible_box_element(bounds, id_generator, group_id)

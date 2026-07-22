@@ -176,7 +176,9 @@ class TestCreateLabelElement:
 
     def test_positions_label_below_icon(self, ids: IdGenerator) -> None:
         # icon bounds (0,0,64,64), outer box starts at -4, label y = 64 + gap(2) = 66
-        label = create_label_element("icon", -ICON_PADDING, 64 + 2 * ICON_PADDING, 64 + DEFAULT_LABEL_GAP, ids, "group-1")
+        label = create_label_element(
+            "icon", -ICON_PADDING, 64 + 2 * ICON_PADDING, 64 + DEFAULT_LABEL_GAP, ids, "group-1"
+        )
         assert label["y"] == 66
 
     def test_label_width_matches_outer_box(self, ids: IdGenerator) -> None:
