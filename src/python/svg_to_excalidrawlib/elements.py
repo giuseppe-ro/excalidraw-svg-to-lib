@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+import time
 from typing import Any
 
 from svg_to_excalidrawlib.constants import (
+    CHAR_WIDTH_RATIO,
     DEFAULT_FILL,
+    DEFAULT_LABEL_FONT_FAMILY,
+    DEFAULT_LABEL_FONT_SIZE,
+    DEFAULT_LABEL_GAP,
+    DEFAULT_LABEL_LINE_HEIGHT,
     DEFAULT_STROKE,
     ELEMENT_SORT_ORDER,
 )
@@ -108,3 +114,63 @@ def normalize_elements(elements: list[dict[str, Any]]) -> list[dict[str, Any]]:
         element["y"] -= min_y
 
     return elements
+
+
+def element_bounds(elements: list[dict[str, Any]]) -> tuple[float, float, float, float]:
+    min_x = min(element["x"] for element in elements)
+    min_y = min(element["y"] for element in elements)
+    max_x = max(element["x"] + element["width"] for element in elements)
+    max_y = max(element["y"] + element["height"] for element in elements)
+    return min_x, min_y, max_x, max_y
+
+
+def create_label_element(
+    label: str,
+    icon_bounds: tuple[float, float, float, float],
+    ids: IdGenerator,
+) -> dict[str, Any]:
+    min_x, min_y, max_x, max_y = icon_bounds
+    icon_width = max_x - min_x
+    icon_height = max_y - min_y
+
+    font_size = DEFAULT_LABEL_FONT_SIZE
+    line_height = DEFAULT_LABEL_LINE_HEIGHT
+    text_width = len(label) * font_size * CHAR_WIDTH_RATIO
+    text_height = font_size * line_height
+
+    return {
+        "type": "text",
+        "version": 1,
+        "versionNonce": ids.random_int(),
+        "isDeleted": False,
+        "id": ids.random_id(),
+        "fillStyle": "solid",
+        "strokeWidth": 1,
+        "strokeStyle": "solid",
+        "roughness": 0,
+        "opacity": 100,
+        "angle": 0,
+        "strokeColor": DEFAULT_STROKE,
+        "backgroundColor": DEFAULT_FILL,
+        "seed": ids.random_int(),
+        "groupIds": [],
+        "frameId": None,
+        "roundness": None,
+        "boundElements": None,
+        "link": None,
+        "locked": False,
+        "updated": int(time.time() * 1000),
+        "text": label,
+        "originalText": label,
+        "fontSize": font_size,
+        "fontFamily": DEFAULT_LABEL_FONT_FAMILY,
+        "textAlign": "center",
+        "verticalAlign": "top",
+        "containerId": None,
+        "autoResize": False,
+        "lineHeight": line_height,
+        "x": (icon_width - text_width) / 2,
+        "y": icon_height + DEFAULT_LABEL_GAP,
+        "width": text_width,
+        "height": text_height,
+    }
