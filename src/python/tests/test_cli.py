@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from svg_to_excalidrawlib.cli import main
+from excalidraw_svg_to_lib.cli import main
 from tests.conftest import FIXTURES_DIR
 
 
@@ -15,7 +15,7 @@ def test_cli_converts_directory(tmp_path: Path, monkeypatch, capsys) -> None:
     monkeypatch.setattr(
         "sys.argv",
         [
-            "svg-to-excalidrawlib",
+            "excalidraw-svg-to-lib",
             str(FIXTURES_DIR),
             "-o",
             str(output_path),
@@ -40,7 +40,7 @@ def test_cli_no_label_skips_text(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr(
         "sys.argv",
         [
-            "svg-to-excalidrawlib",
+            "excalidraw-svg-to-lib",
             str(FIXTURES_DIR),
             "-o",
             str(output_path),
@@ -55,10 +55,10 @@ def test_cli_no_label_skips_text(tmp_path: Path, monkeypatch) -> None:
 
 
 def test_cli_prints_help(monkeypatch, capsys) -> None:
-    monkeypatch.setattr("sys.argv", ["svg-to-excalidrawlib", "--help"])
+    monkeypatch.setattr("sys.argv", ["excalidraw-svg-to-lib", "--help"])
 
     with pytest.raises(SystemExit) as exc_info:
         main()
 
     assert exc_info.value.code == 0
-    assert "svg-to-excalidrawlib" in capsys.readouterr().out
+    assert "excalidraw-svg-to-lib" in capsys.readouterr().out

@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 import string
 
-from svg_to_excalidrawlib.options import ConvertOptions
+from excalidraw_svg_to_lib.options import ConvertOptions
 
 
 class IdGenerator:

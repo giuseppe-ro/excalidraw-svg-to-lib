@@ -9,8 +9,8 @@ from typing import Any
 
 from PIL import Image
 
-from svg_to_excalidrawlib.constants import IMAGE_MIME_TYPES, SUPPORTED_IMAGE_EXTENSIONS
-from svg_to_excalidrawlib.elements import (
+from excalidraw_svg_to_lib.constants import IMAGE_MIME_TYPES, SUPPORTED_IMAGE_EXTENSIONS
+from excalidraw_svg_to_lib.elements import (
     create_base_element,
     create_label_element,
     element_bounds,
@@ -19,10 +19,10 @@ from svg_to_excalidrawlib.elements import (
     normalize_elements,
     sort_elements,
 )
-from svg_to_excalidrawlib.id_generator import IdGenerator
-from svg_to_excalidrawlib.options import ConvertOptions
-from svg_to_excalidrawlib.paths import collect_input_paths, default_output_path
-from svg_to_excalidrawlib.svg_parser import svg_to_elements
+from excalidraw_svg_to_lib.id_generator import IdGenerator
+from excalidraw_svg_to_lib.options import ConvertOptions
+from excalidraw_svg_to_lib.paths import collect_input_paths, default_output_path
+from excalidraw_svg_to_lib.svg_parser import svg_to_elements
 
 
 def generate_file_id(data: bytes) -> str:

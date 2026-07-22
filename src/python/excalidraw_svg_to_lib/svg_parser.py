@@ -5,15 +5,15 @@ from typing import Any
 
 from svg.path import Arc, Close, CubicBezier, Line, Move, Path, QuadraticBezier, parse_path
 
-from svg_to_excalidrawlib.constants import CURVE_SAMPLES, DEFAULT_FILL, DEFAULT_STROKE
-from svg_to_excalidrawlib.elements import (
+from excalidraw_svg_to_lib.constants import CURVE_SAMPLES, DEFAULT_FILL, DEFAULT_STROKE
+from excalidraw_svg_to_lib.elements import (
     Point,
     apply_paint_style,
     create_base_element,
     finalize_linear_element,
     is_circle_like,
 )
-from svg_to_excalidrawlib.id_generator import IdGenerator
+from excalidraw_svg_to_lib.id_generator import IdGenerator
 
 
 def _local_name(tag: str) -> str:

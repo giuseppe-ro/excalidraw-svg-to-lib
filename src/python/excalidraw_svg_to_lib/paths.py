@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from svg_to_excalidrawlib.constants import SUPPORTED_ICON_EXTENSIONS
+from excalidraw_svg_to_lib.constants import SUPPORTED_ICON_EXTENSIONS
 
 
 def is_supported_icon_file(file_path: str | Path) -> bool:

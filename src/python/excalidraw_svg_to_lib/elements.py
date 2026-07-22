@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from svg_to_excalidrawlib.constants import (
+from excalidraw_svg_to_lib.constants import (
     CHAR_WIDTH_RATIO,
     DEFAULT_FILL,
     DEFAULT_LABEL_FONT_FAMILY,
@@ -14,7 +14,7 @@ from svg_to_excalidrawlib.constants import (
     ELEMENT_SORT_ORDER,
     MIN_STROKE_WIDTH,
 )
-from svg_to_excalidrawlib.id_generator import IdGenerator
+from excalidraw_svg_to_lib.id_generator import IdGenerator
 
 Point = tuple[float, float]
 
