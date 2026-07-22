@@ -7,7 +7,7 @@ from PIL import Image
 
 from tests.conftest import FIXTURES_DIR, SVG_DIR
 
-from svg_to_excalidrawlib.constants import SUPPORTED_ICON_EXTENSIONS
+from svg_to_excalidrawlib.constants import DEFAULT_LABEL_GAP, SUPPORTED_ICON_EXTENSIONS
 from svg_to_excalidrawlib.converter import (
     build_library_file,
     convert_image_to_library,
@@ -154,7 +154,7 @@ class TestSvgConversion:
         self,
         fixed_options: ConvertOptions,
     ) -> None:
-        sns_path = SVG_DIR / "Arch_Amazon-Simple-Notification-Service_48.svg"
+        sns_path = SVG_DIR / "sns.svg"
         if not sns_path.exists():
             pytest.skip("AWS SNS fixture not available")
 
@@ -165,7 +165,84 @@ class TestSvgConversion:
         assert types[0] == "rectangle"
         assert types.count("ellipse") >= 1
         assert types.count("line") >= 1
+        assert types[-1] == "text"
         assert elements[0]["backgroundColor"] == "#E7157B"
+
+
+class TestLabelConversion:
+    def test_adds_filename_label_to_svg(
+        self,
+        fixed_options: ConvertOptions,
+    ) -> None:
+        lambda_path = SVG_DIR / "lambda.svg"
+        if not lambda_path.exists():
+            pytest.skip("lambda.svg fixture not available")
+
+        result = convert_input_to_library(lambda_path, fixed_options)
+        elements = result["library"][0]
+        text = elements[-1]
+
+        assert text["type"] == "text"
+        assert text["text"] == "lambda"
+        assert text["originalText"] == "lambda"
+        assert text["textAlign"] == "center"
+        assert text["fontSize"] == 14
+        assert text["fontFamily"] == 2
+
+    def test_label_is_centered_below_icon(
+        self,
+        fixed_options: ConvertOptions,
+    ) -> None:
+        lambda_path = SVG_DIR / "lambda.svg"
+        if not lambda_path.exists():
+            pytest.skip("lambda.svg fixture not available")
+
+        result = convert_input_to_library(lambda_path, fixed_options)
+        shapes = [element for element in result["library"][0] if element["type"] != "text"]
+        text = result["library"][0][-1]
+
+        icon_width = max(element["x"] + element["width"] for element in shapes)
+        icon_height = max(element["y"] + element["height"] for element in shapes)
+
+        assert text["y"] == icon_height + DEFAULT_LABEL_GAP
+        assert text["x"] + text["width"] / 2 == pytest.approx(icon_width / 2, abs=0.01)
+
+    def test_svg_conversion_without_input_path_has_no_label(
+        self,
+        simple_rect_svg: str,
+        fixed_options: ConvertOptions,
+    ) -> None:
+        result = convert_svg_to_library(simple_rect_svg, fixed_options)
+        types = [element["type"] for element in result["library"][0]]
+
+        assert "text" not in types
+
+    def test_adds_filename_label_to_image(
+        self,
+        sample_png: Path,
+        fixed_options: ConvertOptions,
+    ) -> None:
+        result = convert_input_to_library(sample_png, fixed_options)
+        text = result["library"][0][-1]
+
+        assert text["type"] == "text"
+        assert text["text"] == "sample"
+
+    def test_skips_label_when_disabled(
+        self,
+        sample_png: Path,
+        fixed_options: ConvertOptions,
+    ) -> None:
+        options = ConvertOptions(
+            normalize=fixed_options.normalize,
+            add_label=False,
+            id_factory=fixed_options.id_factory,
+            int_factory=fixed_options.int_factory,
+        )
+        result = convert_input_to_library(sample_png, options)
+        types = [element["type"] for element in result["library"][0]]
+
+        assert "text" not in types
 
 
 class TestImageConversion:
@@ -223,6 +300,7 @@ class TestLibraryBuilder:
 class TestElementHelpers:
     def test_sort_elements_by_type(self) -> None:
         elements = [
+            {"type": "text"},
             {"type": "line"},
             {"type": "rectangle"},
             {"type": "ellipse"},
@@ -232,6 +310,7 @@ class TestElementHelpers:
             "rectangle",
             "ellipse",
             "line",
+            "text",
         ]
 
     def test_normalize_elements(self) -> None:

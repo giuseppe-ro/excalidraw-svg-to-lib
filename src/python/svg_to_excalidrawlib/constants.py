@@ -20,4 +20,12 @@ ELEMENT_SORT_ORDER = {
     "ellipse": 1,
     "line": 2,
     "arrow": 3,
+    "image": 3,
+    "text": 4,
 }
+
+DEFAULT_LABEL_FONT_SIZE = 14
+DEFAULT_LABEL_FONT_FAMILY = 2
+DEFAULT_LABEL_GAP = 4
+CHAR_WIDTH_RATIO = 0.55
+DEFAULT_LABEL_LINE_HEIGHT = 1.25

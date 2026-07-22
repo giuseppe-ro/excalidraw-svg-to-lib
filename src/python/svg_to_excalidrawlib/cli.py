@@ -10,6 +10,7 @@ from svg_to_excalidrawlib.converter import (
     resolve_output_path,
     write_library_file,
 )
+from svg_to_excalidrawlib.id_generator import IdGenerator
 from svg_to_excalidrawlib.options import ConvertOptions
 from svg_to_excalidrawlib.paths import collect_input_paths
 
@@ -37,12 +38,20 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Keep original SVG coordinates instead of shifting to origin",
     )
+    parser.add_argument(
+        "--no-label",
+        action="store_true",
+        help="Skip adding filename labels below icons",
+    )
     return parser
 
 
 def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
-    options = ConvertOptions(normalize=not args.no_normalize)
+    options = ConvertOptions(
+        normalize=not args.no_normalize,
+        add_label=not args.no_label,
+    )
 
     try:
         resolved_inputs = collect_input_paths(args.inputs)
@@ -59,10 +68,11 @@ def main(argv: list[str] | None = None) -> None:
 
     library_items = []
     files = {}
+    id_generator = IdGenerator(options)
 
     for input_path in resolved_inputs:
         try:
-            converted = convert_input_to_library(input_path, options)
+            converted = convert_input_to_library(input_path, options, ids=id_generator)
             library_items.append(converted["library"][0])
             files.update(converted.get("files", {}))
             print(

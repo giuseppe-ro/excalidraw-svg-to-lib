@@ -12,6 +12,8 @@ from PIL import Image
 from svg_to_excalidrawlib.constants import IMAGE_MIME_TYPES, SUPPORTED_IMAGE_EXTENSIONS
 from svg_to_excalidrawlib.elements import (
     create_base_element,
+    create_label_element,
+    element_bounds,
     normalize_elements,
     sort_elements,
 )
@@ -28,11 +30,13 @@ def generate_file_id(data: bytes) -> str:
 def convert_svg_to_library(
     svg_content: str,
     options: ConvertOptions | None = None,
+    ids: IdGenerator | None = None,
 ) -> dict[str, Any]:
-    ids = IdGenerator(options)
-    elements, view_box = svg_to_elements(svg_content, ids)
+    resolved_options = options or ConvertOptions()
+    id_generator = ids or IdGenerator(resolved_options)
+    elements, view_box = svg_to_elements(svg_content, id_generator)
 
-    if options is None or options.normalize:
+    if resolved_options.normalize:
         elements = normalize_elements(elements)
 
     return {
@@ -50,6 +54,7 @@ def convert_svg_to_library(
 def convert_image_to_library(
     input_path: str | Path,
     options: ConvertOptions | None = None,
+    ids: IdGenerator | None = None,
 ) -> dict[str, Any]:
     path = Path(input_path)
     extension = path.suffix.lower()
@@ -64,12 +69,13 @@ def convert_image_to_library(
     if width <= 0 or height <= 0:
         raise ValueError(f"Could not read image dimensions from {path}")
 
-    ids = IdGenerator(options)
+    resolved_options = options or ConvertOptions()
+    id_generator = ids or IdGenerator(resolved_options)
     file_id = generate_file_id(data)
     now = int(time.time() * 1000)
     data_url = f"data:{mime_type};base64,{base64.b64encode(data).decode('ascii')}"
 
-    element = create_base_element("image", ids.random_id(), ids)
+    element = create_base_element("image", id_generator.random_id(), id_generator)
     element.update(
         {
             "x": 0,
@@ -112,19 +118,35 @@ def convert_image_to_library(
 def convert_input_to_library(
     input_path: str | Path,
     options: ConvertOptions | None = None,
+    ids: IdGenerator | None = None,
 ) -> dict[str, Any]:
     path = Path(input_path)
     extension = path.suffix.lower()
+    resolved_options = options or ConvertOptions()
+    id_generator = ids or IdGenerator(resolved_options)
 
     if extension == ".svg":
-        return convert_svg_to_library(path.read_text(encoding="utf-8"), options)
-    if extension in SUPPORTED_IMAGE_EXTENSIONS:
-        return convert_image_to_library(path, options)
+        converted = convert_svg_to_library(
+            path.read_text(encoding="utf-8"),
+            resolved_options,
+            ids=id_generator,
+        )
+    elif extension in SUPPORTED_IMAGE_EXTENSIONS:
+        converted = convert_image_to_library(path, resolved_options, ids=id_generator)
+    else:
+        raise ValueError(
+            f"Unsupported file type {extension or '(no extension)'}. "
+            "Use SVG or PNG/JPG/GIF/WebP images."
+        )
 
-    raise ValueError(
-        f"Unsupported file type {extension or '(no extension)'}. "
-        "Use SVG or PNG/JPG/GIF/WebP images."
-    )
+    if resolved_options.add_label:
+        elements = converted["library"][0]
+        bounds = element_bounds(elements)
+        elements.append(create_label_element(path.stem, bounds, id_generator))
+        converted["library"][0] = sort_elements(elements)
+        converted["metadata"]["element_count"] = len(converted["library"][0])
+
+    return converted
 
 
 def build_library_file(
@@ -139,9 +161,10 @@ def build_library_file(
 
     library_items: list[list[dict[str, Any]]] = []
     files: dict[str, Any] = {}
+    id_generator = IdGenerator(options)
 
     for input_path in resolved_inputs:
-        converted = convert_input_to_library(input_path, options)
+        converted = convert_input_to_library(input_path, options, ids=id_generator)
         library_items.append(converted["library"][0])
         files.update(converted.get("files", {}))
 
