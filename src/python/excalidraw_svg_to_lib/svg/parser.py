@@ -6,6 +6,7 @@ from typing import Any
 from excalidraw_svg_to_lib.constants import DEFAULT_FILL, DEFAULT_STROKE
 from excalidraw_svg_to_lib.id_generator import IdGenerator
 from excalidraw_svg_to_lib.svg.converters import _convert_element
+from excalidraw_svg_to_lib.svg.transforms import IDENTITY
 from excalidraw_svg_to_lib.svg.utils import inherit_style, local_name, parse_length
 
 
@@ -39,5 +40,5 @@ def svg_to_elements(svg_content: str, ids: IdGenerator) -> tuple[list[dict[str, 
         root.attrib,
     )
 
-    _convert_element(root, root_style, group_id, ids, elements)
+    _convert_element(root, root_style, IDENTITY, group_id, ids, elements)
     return elements, view_box

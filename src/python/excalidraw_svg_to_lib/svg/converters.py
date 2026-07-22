@@ -11,6 +11,13 @@ from excalidraw_svg_to_lib.elements.models import (
 from excalidraw_svg_to_lib.elements.queries import is_circle_like
 from excalidraw_svg_to_lib.id_generator import IdGenerator
 from excalidraw_svg_to_lib.svg.path_sampling import path_commands_to_points
+from excalidraw_svg_to_lib.svg.transforms import (
+    IDENTITY,
+    Transform,
+    apply_transform_to_element,
+    compose,
+    parse_transform,
+)
 from excalidraw_svg_to_lib.svg.utils import inherit_style, local_name, parse_length
 
 
@@ -167,6 +174,7 @@ def _convert_polygon_like(
 def _convert_element(
     element,
     style: dict[str, Any],
+    transform: Transform,
     group_id: str,
     ids: IdGenerator,
     output: list[dict[str, Any]],
@@ -174,14 +182,25 @@ def _convert_element(
     node_style = inherit_style(style, element.attrib)
     tag = local_name(element.tag)
 
+    # Compose this element's transform into the accumulated transform
+    raw_transform = element.attrib.get("transform")
+    if raw_transform:
+        parsed = parse_transform(raw_transform)
+        current_transform = compose(transform, parsed) if parsed else transform
+    else:
+        current_transform = transform
+
     converters = get_converters()
     if tag in converters:
-        output.extend(
-            converters[tag](element.attrib, inherit_style(node_style, element.attrib), group_id, ids)
-        )
+        new_elements = converters[tag](element.attrib, inherit_style(node_style, element.attrib), group_id, ids)
+        # Apply accumulated transform to newly created elements
+        if current_transform != IDENTITY:
+            for elem in new_elements:
+                apply_transform_to_element(current_transform, elem)
+        output.extend(new_elements)
 
     for child in element:
-        _convert_element(child, node_style, group_id, ids, output)
+        _convert_element(child, node_style, current_transform, group_id, ids, output)
 
 
 # Registry of SVG tag → converter function
