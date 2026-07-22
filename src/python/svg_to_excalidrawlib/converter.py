@@ -14,6 +14,7 @@ from svg_to_excalidrawlib.elements import (
     create_base_element,
     create_label_element,
     element_bounds,
+    fit_elements_to_size,
     icon_group_id,
     normalize_elements,
     sort_elements,
@@ -39,6 +40,9 @@ def convert_svg_to_library(
 
     if resolved_options.normalize:
         elements = normalize_elements(elements)
+
+    if resolved_options.scale_to_target:
+        elements = fit_elements_to_size(elements, resolved_options.target_icon_size)
 
     return {
         "type": "excalidrawlib",
@@ -77,6 +81,13 @@ def convert_image_to_library(
     data_url = f"data:{mime_type};base64,{base64.b64encode(data).decode('ascii')}"
 
     element = create_base_element("image", id_generator.random_id(), id_generator)
+    if resolved_options.scale_to_target and resolved_options.target_icon_size > 0:
+        max_dimension = max(width, height)
+        if max_dimension > 0:
+            scale = resolved_options.target_icon_size / max_dimension
+            width *= scale
+            height *= scale
+
     element.update(
         {
             "x": 0,
