@@ -44,6 +44,22 @@ def scale_elements(elements: list[dict[str, Any]], scale: float) -> list[dict[st
     return elements
 
 
+def normalize_stroke_width(
+    elements: list[dict[str, Any]],
+    target: float,
+) -> list[dict[str, Any]]:
+    """Set all element strokeWidths to a uniform value.
+
+    Applied after scaling so the final visual thickness is exact
+    regardless of original SVG stroke-width differences.
+    """
+    if target <= 0:
+        raise ValueError("Stroke width must be positive")
+    for element in elements:
+        element["strokeWidth"] = target
+    return elements
+
+
 def fit_elements_to_size(
     elements: list[dict[str, Any]],
     target_size: float,

@@ -11,4 +11,5 @@ class ConvertOptions:
     add_label: bool = True
     scale_to_target: bool = True
     target_icon_size: float = DEFAULT_TARGET_ICON_SIZE
+    uniform_stroke_width: float | None = None
     format_version: int = 2

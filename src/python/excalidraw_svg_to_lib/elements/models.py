@@ -4,7 +4,6 @@ import time
 from typing import Any
 
 from excalidraw_svg_to_lib.constants import (
-    CHAR_WIDTH_RATIO,
     DEFAULT_FILL,
     DEFAULT_LABEL_FONT_FAMILY,
     DEFAULT_LABEL_FONT_SIZE,
@@ -66,7 +65,6 @@ def create_label_element(
 
     font_size = DEFAULT_LABEL_FONT_SIZE
     line_height = DEFAULT_LABEL_LINE_HEIGHT
-    text_width = len(label) * font_size * CHAR_WIDTH_RATIO
     text_height = font_size * line_height
 
     return {
@@ -100,9 +98,9 @@ def create_label_element(
         "containerId": None,
         "autoResize": False,
         "lineHeight": line_height,
-        "x": (icon_width - text_width) / 2,
+        "x": 0,
         "y": icon_height + DEFAULT_LABEL_GAP,
-        "width": text_width,
+        "width": icon_width,
         "height": text_height,
     }
 

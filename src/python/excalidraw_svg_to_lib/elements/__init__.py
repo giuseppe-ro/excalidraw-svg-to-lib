@@ -13,6 +13,7 @@ from excalidraw_svg_to_lib.elements.queries import (
 from excalidraw_svg_to_lib.elements.transformations import (
     fit_elements_to_size,
     normalize_elements,
+    normalize_stroke_width,
     scale_elements,
     sort_elements,
 )
@@ -28,6 +29,7 @@ __all__ = [
     "icon_group_id",
     "is_circle_like",
     "normalize_elements",
+    "normalize_stroke_width",
     "scale_elements",
     "sort_elements",
 ]

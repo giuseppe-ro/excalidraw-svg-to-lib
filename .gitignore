@@ -232,5 +232,6 @@ ehthumbs.db
 # Linux
 .directory
 
-# excalidraw
+# project
 output.excalidrawlib
+svg/*

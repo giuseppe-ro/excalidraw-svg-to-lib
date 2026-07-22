@@ -163,7 +163,10 @@ class TestCreateLabelElement:
         assert label["fontSize"] == 8
         assert label["fontFamily"] == 2
 
-    def test_computes_text_dimensions_from_label_length(self, ids: IdGenerator) -> None:
+    def test_text_box_width_equals_icon_width_regardless_of_label_length(self, ids: IdGenerator) -> None:
         short = create_label_element("a", (0, 0, 64, 64), ids, "g1")
         long = create_label_element("verylonglabel", (0, 0, 64, 64), ids, "g1")
-        assert long["width"] > short["width"]
+        assert short["width"] == 64
+        assert long["width"] == 64
+        assert short["x"] == 0
+        assert long["x"] == 0

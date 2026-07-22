@@ -9,6 +9,7 @@ from excalidraw_svg_to_lib.elements import (
     fit_elements_to_size,
     icon_group_id,
     normalize_elements,
+    normalize_stroke_width,
     sort_elements,
 )
 from excalidraw_svg_to_lib.id_generator import IdGenerator
@@ -50,6 +51,9 @@ def _convert_svg(path: Path, options: ConvertOptions, ids: IdGenerator) -> dict[
     if options.scale_to_target:
         elements = fit_elements_to_size(elements, options.target_icon_size)
 
+    if options.uniform_stroke_width is not None:
+        elements = normalize_stroke_width(elements, options.uniform_stroke_width)
+
     return {
         "library": [sort_elements(elements)],
         "files": {},
@@ -81,6 +85,9 @@ def convert_svg_to_library(
 
     if resolved_options.scale_to_target:
         elements = fit_elements_to_size(elements, resolved_options.target_icon_size)
+
+    if resolved_options.uniform_stroke_width is not None:
+        elements = normalize_stroke_width(elements, resolved_options.uniform_stroke_width)
 
     return {
         "type": "excalidrawlib",
