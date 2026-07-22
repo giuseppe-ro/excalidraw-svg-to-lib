@@ -4,7 +4,6 @@ import random
 from pathlib import Path
 
 import pytest
-from PIL import Image
 
 from excalidraw_svg_to_lib.id_generator import IdGenerator
 from excalidraw_svg_to_lib.svg.parser import parse_view_box, svg_to_elements
