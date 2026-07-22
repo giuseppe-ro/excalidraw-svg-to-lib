@@ -14,6 +14,7 @@ from svg_to_excalidrawlib.elements import (
     create_base_element,
     create_label_element,
     element_bounds,
+    icon_group_id,
     normalize_elements,
     sort_elements,
 )
@@ -142,7 +143,8 @@ def convert_input_to_library(
     if resolved_options.add_label:
         elements = converted["library"][0]
         bounds = element_bounds(elements)
-        elements.append(create_label_element(path.stem, bounds, id_generator))
+        group_id = icon_group_id(elements)
+        elements.append(create_label_element(path.stem, bounds, id_generator, group_id))
         converted["library"][0] = sort_elements(elements)
         converted["metadata"]["element_count"] = len(converted["library"][0])
 

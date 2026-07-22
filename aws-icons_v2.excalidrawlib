@@ -787,26 +787,28 @@
         "strokeColor": "#000000",
         "backgroundColor": "transparent",
         "seed": 1966898329,
-        "groupIds": [],
+        "groupIds": [
+          "X1fH_ZM9TBrKrmGsNmjQ8"
+        ],
         "frameId": null,
         "roundness": null,
         "boundElements": null,
         "link": null,
         "locked": false,
-        "updated": 1784716258363,
+        "updated": 1784716994358,
         "text": "lambda",
         "originalText": "lambda",
-        "fontSize": 14,
+        "fontSize": 8,
         "fontFamily": 2,
         "textAlign": "center",
         "verticalAlign": "top",
         "containerId": null,
         "autoResize": false,
         "lineHeight": 1.25,
-        "x": -3.1000000000000014,
-        "y": 44.0,
-        "width": 46.2,
-        "height": 17.5
+        "x": 6.799999999999999,
+        "y": 42.0,
+        "width": 26.400000000000002,
+        "height": 10.0
       }
     ],
     [
@@ -2710,26 +2712,28 @@
         "strokeColor": "#000000",
         "backgroundColor": "transparent",
         "seed": 1646750908,
-        "groupIds": [],
+        "groupIds": [
+          "kQfJrE9TKTqNX1kayQuEC"
+        ],
         "frameId": null,
         "roundness": null,
         "boundElements": null,
         "link": null,
         "locked": false,
-        "updated": 1784716258365,
+        "updated": 1784716994360,
         "text": "sns",
         "originalText": "sns",
-        "fontSize": 14,
+        "fontSize": 8,
         "fontFamily": 2,
         "textAlign": "center",
         "verticalAlign": "top",
         "containerId": null,
         "autoResize": false,
         "lineHeight": 1.25,
-        "x": 20.45,
-        "y": 68.0,
-        "width": 23.1,
-        "height": 17.5
+        "x": 25.4,
+        "y": 66.0,
+        "width": 13.200000000000001,
+        "height": 10.0
       }
     ],
     [
@@ -4184,26 +4188,28 @@
         "strokeColor": "#000000",
         "backgroundColor": "transparent",
         "seed": 1094152418,
-        "groupIds": [],
+        "groupIds": [
+          "_oh7RpLqXLpyeY4Vy6Tjf"
+        ],
         "frameId": null,
         "roundness": null,
         "boundElements": null,
         "link": null,
         "locked": false,
-        "updated": 1784716258367,
+        "updated": 1784716994363,
         "text": "sqs",
         "originalText": "sqs",
-        "fontSize": 14,
+        "fontSize": 8,
         "fontFamily": 2,
         "textAlign": "center",
         "verticalAlign": "top",
         "containerId": null,
         "autoResize": false,
         "lineHeight": 1.25,
-        "x": 8.45,
-        "y": 44.0,
-        "width": 23.1,
-        "height": 17.5
+        "x": 13.399999999999999,
+        "y": 42.0,
+        "width": 13.200000000000001,
+        "height": 10.0
       }
     ]
   ]

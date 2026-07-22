@@ -228,6 +228,20 @@ class TestLabelConversion:
         assert text["type"] == "text"
         assert text["text"] == "sample"
 
+    def test_label_is_grouped_with_icon_shapes(
+        self,
+        sample_png: Path,
+        fixed_options: ConvertOptions,
+    ) -> None:
+        result = convert_input_to_library(sample_png, fixed_options)
+        elements = result["library"][0]
+        image = elements[0]
+        text = elements[-1]
+
+        assert image["type"] == "image"
+        assert text["type"] == "text"
+        assert text["groupIds"] == image["groupIds"]
+
     def test_skips_label_when_disabled(
         self,
         sample_png: Path,

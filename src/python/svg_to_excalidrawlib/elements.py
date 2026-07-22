@@ -124,10 +124,18 @@ def element_bounds(elements: list[dict[str, Any]]) -> tuple[float, float, float,
     return min_x, min_y, max_x, max_y
 
 
+def icon_group_id(elements: list[dict[str, Any]]) -> str:
+    group_ids = elements[0].get("groupIds") or []
+    if not group_ids:
+        raise ValueError("Icon elements must belong to a group")
+    return group_ids[0]
+
+
 def create_label_element(
     label: str,
     icon_bounds: tuple[float, float, float, float],
     ids: IdGenerator,
+    group_id: str,
 ) -> dict[str, Any]:
     min_x, min_y, max_x, max_y = icon_bounds
     icon_width = max_x - min_x
@@ -153,7 +161,7 @@ def create_label_element(
         "strokeColor": DEFAULT_STROKE,
         "backgroundColor": DEFAULT_FILL,
         "seed": ids.random_int(),
-        "groupIds": [],
+        "groupIds": [group_id],
         "frameId": None,
         "roundness": None,
         "boundElements": None,
