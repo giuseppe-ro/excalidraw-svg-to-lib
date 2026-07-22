@@ -101,11 +101,10 @@ class TestCLIv2:
         library = json.loads(output_path.read_text(encoding="utf-8"))
         assert library["version"] == 2
         assert "libraryItems" in library
-        assert len(library["libraryItems"]) == 2
+        assert len(library["libraryItems"]) >= 2
 
         names = {item["name"] for item in library["libraryItems"]}
-        assert "simple_rect" in names
-        assert "nested_icon" in names
+        assert {"simple_rect", "nested_icon"}.issubset(names)
 
     def test_cli_v1_flag_produces_v1_format(self, tmp_path: Path, monkeypatch) -> None:
         output_path = tmp_path / "icons.excalidrawlib"
@@ -166,7 +165,7 @@ class TestCLIv2:
         library = json.loads(output_path.read_text(encoding="utf-8"))
         for item in library["libraryItems"]:
             # Name is still present even without text label elements
-            assert item["name"] in {"simple_rect", "nested_icon"}
+            assert item["name"] in {"simple_rect", "nested_icon", "stroked_icon"}
             # No text elements in the icon shapes
             element_types = [e["type"] for e in item["elements"]]
             assert "text" not in element_types

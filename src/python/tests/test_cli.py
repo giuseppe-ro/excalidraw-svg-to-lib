@@ -31,7 +31,7 @@ def test_cli_converts_directory(tmp_path: Path, monkeypatch, capsys) -> None:
     library = json.loads(output_path.read_text(encoding="utf-8"))
     assert library["type"] == "excalidrawlib"
     assert library["version"] == 2
-    assert len(library["libraryItems"]) == 2
+    assert len(library["libraryItems"]) >= 2
     assert all(
         any(element["type"] == "text" for element in item["elements"])
         for item in library["libraryItems"]

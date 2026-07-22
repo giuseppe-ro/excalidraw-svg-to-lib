@@ -52,6 +52,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="Keep original icon dimensions instead of scaling to --target-size",
     )
     parser.add_argument(
+        "--stroke-width",
+        type=float,
+        default=None,
+        help=(
+            "Uniform stroke width for all elements (overrides SVG stroke-width values). "
+            "Default: 1"
+        ),
+    )
+    parser.add_argument(
         "--v1",
         action="store_true",
         help="Use legacy v1 library format (default is v2 with searchable names)",
@@ -66,6 +75,7 @@ def main(argv: list[str] | None = None) -> None:
         add_label=not args.no_label,
         scale_to_target=not args.no_scale,
         target_icon_size=args.target_size,
+        uniform_stroke_width=args.stroke_width,  # defaults to DEFAULT_STROKE_WIDTH in ConvertOptions
         format_version=1 if args.v1 else 2,
     )
 

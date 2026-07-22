@@ -6,9 +6,11 @@ import pytest
 from excalidraw_svg_to_lib.elements.models import (
     apply_paint_style,
     create_base_element,
+    create_invisible_box_element,
     create_label_element,
     finalize_linear_element,
 )
+from excalidraw_svg_to_lib.constants import ICON_PADDING, DEFAULT_LABEL_GAP
 from excalidraw_svg_to_lib.id_generator import IdGenerator
 
 
@@ -25,7 +27,7 @@ class TestCreateBaseElement:
         assert elem["isDeleted"] is False
         assert elem["groupIds"] == ["group-1"]
         assert elem["fillStyle"] == "solid"
-        assert elem["strokeWidth"] == 2
+        assert elem["strokeWidth"] == 0.5
         assert elem["strokeStyle"] == "solid"
         assert elem["roughness"] == 0
         assert elem["opacity"] == 100
@@ -79,7 +81,7 @@ class TestApplyPaintStyle:
     def test_defaults_stroke_width_to_2_when_stroke_transparent(self, ids: IdGenerator) -> None:
         elem = create_base_element("rectangle", "g1", ids)
         apply_paint_style(elem, {"fill": "#fff", "stroke": "transparent", "stroke_width": 0})
-        assert elem["strokeWidth"] == 2
+        assert elem["strokeWidth"] == 0.5
 
     def test_sets_opacity(self, ids: IdGenerator) -> None:
         elem = create_base_element("rectangle", "g1", ids)
@@ -136,34 +138,78 @@ class TestFinalizeLinearElement:
         assert len(result["points"]) == 5
 
 
+class TestCreateInvisibleBoxElement:
+    def test_creates_rectangle_element(self, ids: IdGenerator) -> None:
+        box = create_invisible_box_element((0, 0, 64, 64), ids, "group-1")
+        assert box["type"] == "rectangle"
+
+    def test_extends_beyond_icon_by_padding(self, ids: IdGenerator) -> None:
+        box = create_invisible_box_element((0, 0, 64, 64), ids, "group-1")
+        assert box["x"] == -ICON_PADDING
+        assert box["y"] == -ICON_PADDING
+        assert box["width"] == 64 + 2 * ICON_PADDING
+        assert box["height"] == 64 + 2 * ICON_PADDING
+
+    def test_has_minimal_stroke(self, ids: IdGenerator) -> None:
+        box = create_invisible_box_element((0, 0, 64, 64), ids, "group-1")
+        assert box["strokeWidth"] == 0.5  # DEFAULT_STROKE_WIDTH
+        assert box["backgroundColor"] == "transparent"
+
+    def test_sets_group_ids(self, ids: IdGenerator) -> None:
+        box = create_invisible_box_element((0, 0, 64, 64), ids, "group-1")
+        assert box["groupIds"] == ["group-1"]
+
+    def test_handles_offset_icon_bounds(self, ids: IdGenerator) -> None:
+        box = create_invisible_box_element((10, 20, 74, 84), ids, "g1")
+        assert box["x"] == 10 - ICON_PADDING
+        assert box["y"] == 20 - ICON_PADDING
+        assert box["width"] == 64 + 2 * ICON_PADDING
+        assert box["height"] == 64 + 2 * ICON_PADDING
+
+
 class TestCreateLabelElement:
     def test_creates_text_element(self, ids: IdGenerator) -> None:
-        label = create_label_element("test", (0, 0, 64, 64), ids, "group-1")
+        label = create_label_element("test", -4, 72, 70, ids, "group-1")
         assert label["type"] == "text"
         assert label["text"] == "test"
         assert label["originalText"] == "test"
 
-    def test_centers_label_below_icon(self, ids: IdGenerator) -> None:
-        label = create_label_element("icon", (0, 0, 64, 64), ids, "group-1")
-        assert label["y"] == 66  # icon_height(64) + gap(2)
-        # x should center the text under the icon
+    def test_positions_label_below_icon(self, ids: IdGenerator) -> None:
+        # icon bounds (0,0,64,64), outer box starts at -4, label y = 64 + gap(2) = 66
+        label = create_label_element(
+            "icon", -ICON_PADDING, 64 + 2 * ICON_PADDING, 64 + DEFAULT_LABEL_GAP, ids, "group-1"
+        )
+        assert label["y"] == 66
+
+    def test_label_width_matches_outer_box(self, ids: IdGenerator) -> None:
+        outer_width = 64 + 2 * ICON_PADDING
+        label = create_label_element("test", -ICON_PADDING, outer_width, 70, ids, "g1")
+        assert label["width"] == outer_width
+        assert label["x"] == -ICON_PADDING
+
+    def test_centers_label_under_icon(self, ids: IdGenerator) -> None:
+        # outer box centered on 64-wide icon: x=-4, width=72, center at 32
+        label = create_label_element("icon", -ICON_PADDING, 64 + 2 * ICON_PADDING, 66, ids, "group-1")
         assert label["x"] + label["width"] / 2 == pytest.approx(32.0)
 
     def test_sets_group_ids(self, ids: IdGenerator) -> None:
-        label = create_label_element("test", (0, 0, 64, 64), ids, "group-1")
+        label = create_label_element("test", -ICON_PADDING, 72, 66, ids, "group-1")
         assert label["groupIds"] == ["group-1"]
 
     def test_sets_text_alignment(self, ids: IdGenerator) -> None:
-        label = create_label_element("test", (0, 0, 64, 64), ids, "group-1")
+        label = create_label_element("test", -ICON_PADDING, 72, 66, ids, "group-1")
         assert label["textAlign"] == "center"
         assert label["verticalAlign"] == "top"
 
     def test_sets_font_properties(self, ids: IdGenerator) -> None:
-        label = create_label_element("test", (0, 0, 64, 64), ids, "group-1")
+        label = create_label_element("test", -ICON_PADDING, 72, 66, ids, "group-1")
         assert label["fontSize"] == 8
         assert label["fontFamily"] == 2
 
-    def test_computes_text_dimensions_from_label_length(self, ids: IdGenerator) -> None:
-        short = create_label_element("a", (0, 0, 64, 64), ids, "g1")
-        long = create_label_element("verylonglabel", (0, 0, 64, 64), ids, "g1")
-        assert long["width"] > short["width"]
+    def test_text_box_width_matches_outer_box_regardless_of_label_length(self, ids: IdGenerator) -> None:
+        outer_width = 64 + 2 * ICON_PADDING
+        short = create_label_element("a", -ICON_PADDING, outer_width, 66, ids, "g1")
+        long = create_label_element("verylonglabel", -ICON_PADDING, outer_width, 66, ids, "g1")
+        assert short["width"] == outer_width
+        assert long["width"] == outer_width
+        assert short["x"] == long["x"]

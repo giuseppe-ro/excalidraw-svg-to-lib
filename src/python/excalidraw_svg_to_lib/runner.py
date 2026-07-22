@@ -3,12 +3,15 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Callable
 
+from excalidraw_svg_to_lib.constants import ICON_PADDING, DEFAULT_LABEL_GAP
 from excalidraw_svg_to_lib.elements import (
+    create_invisible_box_element,
     create_label_element,
     element_bounds,
     fit_elements_to_size,
     icon_group_id,
     normalize_elements,
+    normalize_stroke_width,
     sort_elements,
 )
 from excalidraw_svg_to_lib.id_generator import IdGenerator
@@ -50,6 +53,9 @@ def _convert_svg(path: Path, options: ConvertOptions, ids: IdGenerator) -> dict[
     if options.scale_to_target:
         elements = fit_elements_to_size(elements, options.target_icon_size)
 
+    if options.uniform_stroke_width is not None:
+        elements = normalize_stroke_width(elements, options.uniform_stroke_width)
+
     return {
         "library": [sort_elements(elements)],
         "files": {},
@@ -81,6 +87,9 @@ def convert_svg_to_library(
 
     if resolved_options.scale_to_target:
         elements = fit_elements_to_size(elements, resolved_options.target_icon_size)
+
+    if resolved_options.uniform_stroke_width is not None:
+        elements = normalize_stroke_width(elements, resolved_options.uniform_stroke_width)
 
     return {
         "type": "excalidrawlib",
@@ -121,7 +130,22 @@ def convert_input_to_library(
         elements = result["library"][0]
         bounds = element_bounds(elements)
         group_id = icon_group_id(elements)
-        elements.append(create_label_element(icon_name, bounds, id_generator, group_id))
+
+        min_x, min_y, max_x, max_y = bounds
+
+        # Invisible outer box (inserted first so it sorts behind the icon)
+        invisible_box = create_invisible_box_element(bounds, id_generator, group_id)
+        outer_box_x = min_x - ICON_PADDING
+        outer_box_width = (max_x - min_x) + 2 * ICON_PADDING
+        label_y = max_y + ICON_PADDING + DEFAULT_LABEL_GAP
+
+        # Label matches outer box width, centered
+        label = create_label_element(
+            icon_name, outer_box_x, outer_box_width, label_y, id_generator, group_id
+        )
+
+        elements.insert(0, invisible_box)
+        elements.append(label)
         result["library"][0] = sort_elements(elements)
 
     return {

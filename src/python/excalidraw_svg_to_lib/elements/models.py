@@ -4,13 +4,13 @@ import time
 from typing import Any
 
 from excalidraw_svg_to_lib.constants import (
-    CHAR_WIDTH_RATIO,
     DEFAULT_FILL,
     DEFAULT_LABEL_FONT_FAMILY,
     DEFAULT_LABEL_FONT_SIZE,
-    DEFAULT_LABEL_GAP,
     DEFAULT_LABEL_LINE_HEIGHT,
     DEFAULT_STROKE,
+    DEFAULT_STROKE_WIDTH,
+    ICON_PADDING,
 )
 from excalidraw_svg_to_lib.id_generator import IdGenerator
 
@@ -27,7 +27,7 @@ def apply_paint_style(element: dict[str, Any], style: dict[str, Any]) -> None:
     element["strokeWidth"] = (
         style["stroke_width"]
         if style["stroke"] != "transparent" and style["stroke_width"] > 0
-        else 2
+        else DEFAULT_STROKE_WIDTH
     )
     element["opacity"] = style.get("opacity", 100)
 
@@ -40,7 +40,7 @@ def create_base_element(element_type: str, group_id: str, ids: IdGenerator) -> d
         "isDeleted": False,
         "id": ids.random_id(),
         "fillStyle": "solid",
-        "strokeWidth": 2,
+        "strokeWidth": DEFAULT_STROKE_WIDTH,
         "strokeStyle": "solid",
         "roughness": 0,
         "opacity": 100,
@@ -54,19 +54,62 @@ def create_base_element(element_type: str, group_id: str, ids: IdGenerator) -> d
     }
 
 
-def create_label_element(
-    label: str,
+def create_invisible_box_element(
     icon_bounds: tuple[float, float, float, float],
     ids: IdGenerator,
     group_id: str,
 ) -> dict[str, Any]:
+    """Create an invisible rectangle around the icon that arrows can snap to.
+
+    The box extends ICON_PADDING pixels beyond the icon on each side,
+    providing extra margin for arrow connections.
+    """
     min_x, min_y, max_x, max_y = icon_bounds
     icon_width = max_x - min_x
     icon_height = max_y - min_y
 
+    return {
+        "type": "rectangle",
+        "version": 1,
+        "versionNonce": ids.random_int(),
+        "isDeleted": False,
+        "id": ids.random_id(),
+        "fillStyle": "solid",
+        "strokeWidth": DEFAULT_STROKE_WIDTH,
+        "strokeStyle": "solid",
+        "roughness": 0,
+        "opacity": 100,
+        "angle": 0,
+        "strokeColor": DEFAULT_STROKE,
+        "backgroundColor": DEFAULT_FILL,
+        "seed": ids.random_int(),
+        "groupIds": [group_id],
+        "strokeSharpness": "sharp",
+        "boundElementIds": [],
+        "frameId": None,
+        "roundness": None,
+        "x": min_x - ICON_PADDING,
+        "y": min_y - ICON_PADDING,
+        "width": icon_width + 2 * ICON_PADDING,
+        "height": icon_height + 2 * ICON_PADDING,
+    }
+
+
+def create_label_element(
+    label: str,
+    outer_box_x: float,
+    outer_box_width: float,
+    label_y: float,
+    ids: IdGenerator,
+    group_id: str,
+) -> dict[str, Any]:
+    """Create a text label element for the icon.
+
+    The label width matches the invisible outer box width for consistent
+    alignment. Text is center-aligned within the box.
+    """
     font_size = DEFAULT_LABEL_FONT_SIZE
     line_height = DEFAULT_LABEL_LINE_HEIGHT
-    text_width = len(label) * font_size * CHAR_WIDTH_RATIO
     text_height = font_size * line_height
 
     return {
@@ -76,7 +119,7 @@ def create_label_element(
         "isDeleted": False,
         "id": ids.random_id(),
         "fillStyle": "solid",
-        "strokeWidth": 1,
+        "strokeWidth": DEFAULT_STROKE_WIDTH,
         "strokeStyle": "solid",
         "roughness": 0,
         "opacity": 100,
@@ -100,9 +143,9 @@ def create_label_element(
         "containerId": None,
         "autoResize": False,
         "lineHeight": line_height,
-        "x": (icon_width - text_width) / 2,
-        "y": icon_height + DEFAULT_LABEL_GAP,
-        "width": text_width,
+        "x": outer_box_x,
+        "y": label_y,
+        "width": outer_box_width,
         "height": text_height,
     }
 
