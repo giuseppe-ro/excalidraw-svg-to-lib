@@ -49,7 +49,9 @@ if [ -n "$APPEND" ]; then
   CMD+=(--append "$APPEND")
 fi
 CMD+=(-o "$OUTPUT")
-CMD+=("${EXTRA_ARGS[@]:-}")
+if [ ${#EXTRA_ARGS[@]} -gt 0 ]; then
+  CMD+=("${EXTRA_ARGS[@]}")
+fi
 
 # 5. Run the converter
 echo "Converting '$INPUT' → '$OUTPUT' ..."

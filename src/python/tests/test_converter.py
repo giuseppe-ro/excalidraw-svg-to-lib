@@ -11,6 +11,7 @@ from excalidraw_svg_to_lib.constants import (
     DEFAULT_LABEL_FONT_SIZE,
     DEFAULT_LABEL_GAP,
     DEFAULT_TARGET_ICON_SIZE,
+    ICON_PADDING,
 )
 from excalidraw_svg_to_lib.io import (
     collect_input_paths,
@@ -164,11 +165,15 @@ class TestSvgConversion:
         elements = result["library"][0]
         types = [element["type"] for element in elements]
 
-        assert types[0] == "rectangle"
+        # First element is the invisible outer box, icon elements start at index 1
+        assert types[0] == "rectangle"  # invisible box
+        assert elements[0]["strokeWidth"] == 0.5  # invisible box matches DEFAULT_STROKE_WIDTH
+        assert elements[0]["backgroundColor"] == "transparent"
+
         assert types.count("ellipse") >= 1
         assert types.count("line") >= 1
         assert types[-1] == "text"
-        assert elements[0]["backgroundColor"] == "#E7157B"
+        assert elements[1]["backgroundColor"] == "#E7157B"
 
 
 class TestLabelConversion:
@@ -202,13 +207,18 @@ class TestLabelConversion:
             pytest.skip("lambda.svg fixture not available")
 
         result = convert_input_to_library(lambda_path, fixed_options, ids=fixed_ids)
-        shapes = [element for element in result["library"][0] if element["type"] != "text"]
+        # Exclude text and invisible box (first element) from shape measurements
+        shapes = [
+            element
+            for element in result["library"][0][1:]  # skip invisible box at index 0
+            if element["type"] != "text"
+        ]
         text = result["library"][0][-1]
 
         icon_width = max(element["x"] + element["width"] for element in shapes)
         icon_height = max(element["y"] + element["height"] for element in shapes)
 
-        assert text["y"] == icon_height + DEFAULT_LABEL_GAP
+        assert text["y"] == icon_height + ICON_PADDING + DEFAULT_LABEL_GAP
         assert text["x"] + text["width"] / 2 == pytest.approx(icon_width / 2, abs=0.01)
 
     def test_scales_lambda_icon_to_target_size(
@@ -221,12 +231,17 @@ class TestLabelConversion:
             pytest.skip("lambda.svg fixture not available")
 
         result = convert_input_to_library(lambda_path, fixed_options, ids=fixed_ids)
-        shapes = [element for element in result["library"][0] if element["type"] != "text"]
+        # Exclude text and invisible box (first element)
+        shapes = [
+            element
+            for element in result["library"][0][1:]  # skip invisible box at index 0
+            if element["type"] != "text"
+        ]
         text = result["library"][0][-1]
 
         _, _, max_x, max_y = element_bounds(shapes)
         assert max(max_x, max_y) == pytest.approx(DEFAULT_TARGET_ICON_SIZE, abs=0.01)
-        assert text["y"] == pytest.approx(DEFAULT_TARGET_ICON_SIZE + DEFAULT_LABEL_GAP, abs=0.01)
+        assert text["y"] == pytest.approx(DEFAULT_TARGET_ICON_SIZE + ICON_PADDING + DEFAULT_LABEL_GAP, abs=0.01)
 
     def test_scales_spaceship_icon_to_target_size(
         self,
@@ -238,7 +253,12 @@ class TestLabelConversion:
             pytest.skip("spaceship.svg fixture not available")
 
         result = convert_input_to_library(spaceship_path, fixed_options, ids=fixed_ids)
-        shapes = [element for element in result["library"][0] if element["type"] != "text"]
+        # Exclude text and invisible box (first element)
+        shapes = [
+            element
+            for element in result["library"][0][1:]  # skip invisible box at index 0
+            if element["type"] != "text"
+        ]
         text = result["library"][0][-1]
 
         _, _, max_x, max_y = element_bounds(shapes)
@@ -246,7 +266,7 @@ class TestLabelConversion:
         icon_height = max_y
 
         assert max(icon_width, icon_height) == pytest.approx(DEFAULT_TARGET_ICON_SIZE, abs=0.01)
-        assert text["y"] == pytest.approx(icon_height + DEFAULT_LABEL_GAP, abs=0.01)
+        assert text["y"] == pytest.approx(icon_height + ICON_PADDING + DEFAULT_LABEL_GAP, abs=0.01)
         assert text["x"] + text["width"] / 2 == pytest.approx(icon_width / 2, abs=0.01)
 
     def test_sns_icon_stays_at_target_size(
@@ -259,7 +279,12 @@ class TestLabelConversion:
             pytest.skip("sns.svg fixture not available")
 
         result = convert_input_to_library(sns_path, fixed_options, ids=fixed_ids)
-        shapes = [element for element in result["library"][0] if element["type"] != "text"]
+        # Exclude text and invisible box (first element)
+        shapes = [
+            element
+            for element in result["library"][0][1:]  # skip invisible box at index 0
+            if element["type"] != "text"
+        ]
 
         _, _, max_x, max_y = element_bounds(shapes)
         assert max(max_x, max_y) == pytest.approx(DEFAULT_TARGET_ICON_SIZE, abs=0.01)

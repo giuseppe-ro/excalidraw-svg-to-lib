@@ -105,7 +105,7 @@ class TestScaleElements:
     def test_scales_stroke_width_with_minimum(self) -> None:
         elements = [{"x": 0, "y": 0, "width": 10, "height": 10, "strokeWidth": 2}]
         scale_elements(elements, 0.1)
-        assert elements[0]["strokeWidth"] == 1  # min stroke width is 1
+        assert elements[0]["strokeWidth"] == 0.5  # min stroke width is 0.5
 
     def test_scales_points(self) -> None:
         elements = [{"x": 0, "y": 0, "width": 10, "height": 10, "points": [[0, 0], [10, 10]]}]

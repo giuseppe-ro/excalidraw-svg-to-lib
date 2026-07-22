@@ -3,7 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Callable
 
+from excalidraw_svg_to_lib.constants import ICON_PADDING, DEFAULT_LABEL_GAP
 from excalidraw_svg_to_lib.elements import (
+    create_invisible_box_element,
     create_label_element,
     element_bounds,
     fit_elements_to_size,
@@ -128,7 +130,23 @@ def convert_input_to_library(
         elements = result["library"][0]
         bounds = element_bounds(elements)
         group_id = icon_group_id(elements)
-        elements.append(create_label_element(icon_name, bounds, id_generator, group_id))
+
+        min_x, min_y, max_x, max_y = bounds
+        icon_height = max_y - min_y
+
+        # Invisible outer box (inserted first so it sorts behind the icon)
+        invisible_box = create_invisible_box_element(bounds, id_generator, group_id)
+        outer_box_x = min_x - ICON_PADDING
+        outer_box_width = (max_x - min_x) + 2 * ICON_PADDING
+        label_y = max_y + ICON_PADDING + DEFAULT_LABEL_GAP
+
+        # Label matches outer box width, centered
+        label = create_label_element(
+            icon_name, outer_box_x, outer_box_width, label_y, id_generator, group_id
+        )
+
+        elements.insert(0, invisible_box)
+        elements.append(label)
         result["library"][0] = sort_elements(elements)
 
     return {

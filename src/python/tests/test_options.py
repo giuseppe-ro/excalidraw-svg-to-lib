@@ -13,7 +13,7 @@ class TestConvertOptions:
         assert opts.add_label is True
         assert opts.scale_to_target is True
         assert opts.target_icon_size == 64.0
-        assert opts.uniform_stroke_width is None
+        assert opts.uniform_stroke_width == 0.5
         assert opts.format_version == 2
 
     def test_v1_format(self) -> None:

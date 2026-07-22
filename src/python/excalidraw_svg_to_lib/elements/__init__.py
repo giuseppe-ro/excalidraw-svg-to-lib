@@ -2,6 +2,7 @@ from excalidraw_svg_to_lib.elements.models import (
     Point,
     apply_paint_style,
     create_base_element,
+    create_invisible_box_element,
     create_label_element,
     finalize_linear_element,
 )
@@ -22,6 +23,7 @@ __all__ = [
     "Point",
     "apply_paint_style",
     "create_base_element",
+    "create_invisible_box_element",
     "create_label_element",
     "element_bounds",
     "finalize_linear_element",

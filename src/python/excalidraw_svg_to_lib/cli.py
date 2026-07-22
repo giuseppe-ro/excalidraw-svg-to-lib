@@ -57,7 +57,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help=(
             "Uniform stroke width for all elements (overrides SVG stroke-width values). "
-            "Omit to preserve original stroke widths."
+            "Default: 1"
         ),
     )
     parser.add_argument(
@@ -75,7 +75,7 @@ def main(argv: list[str] | None = None) -> None:
         add_label=not args.no_label,
         scale_to_target=not args.no_scale,
         target_icon_size=args.target_size,
-        uniform_stroke_width=args.stroke_width,
+        uniform_stroke_width=args.stroke_width,  # defaults to DEFAULT_STROKE_WIDTH in ConvertOptions
         format_version=1 if args.v1 else 2,
     )
 

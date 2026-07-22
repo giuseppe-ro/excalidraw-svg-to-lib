@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from excalidraw_svg_to_lib.constants import DEFAULT_TARGET_ICON_SIZE
+from excalidraw_svg_to_lib.constants import DEFAULT_STROKE_WIDTH, DEFAULT_TARGET_ICON_SIZE
 
 
 @dataclass(frozen=True)
@@ -11,5 +11,5 @@ class ConvertOptions:
     add_label: bool = True
     scale_to_target: bool = True
     target_icon_size: float = DEFAULT_TARGET_ICON_SIZE
-    uniform_stroke_width: float | None = None
+    uniform_stroke_width: float | None = DEFAULT_STROKE_WIDTH
     format_version: int = 2
