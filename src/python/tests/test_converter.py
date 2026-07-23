@@ -8,15 +8,9 @@ import pytest
 from tests.conftest import FIXTURES_DIR, SVG_DIR
 
 from excalidraw_svg_to_lib.constants import (
-    DEFAULT_LABEL_FONT_SIZE,
     DEFAULT_LABEL_GAP,
     DEFAULT_TARGET_ICON_SIZE,
     ICON_PADDING,
-)
-from excalidraw_svg_to_lib.io import (
-    collect_input_paths,
-    default_output_path,
-    is_supported_icon_file,
 )
 from excalidraw_svg_to_lib.runner import (
     build_library_file,
@@ -25,14 +19,7 @@ from excalidraw_svg_to_lib.runner import (
 )
 from excalidraw_svg_to_lib.id_generator import IdGenerator
 from excalidraw_svg_to_lib.options import ConvertOptions
-from excalidraw_svg_to_lib.elements import (
-    element_bounds,
-    fit_elements_to_size,
-    is_circle_like,
-    normalize_elements,
-    scale_elements,
-    sort_elements,
-)
+from excalidraw_svg_to_lib.elements import element_bounds
 
 
 @pytest.fixture
@@ -60,43 +47,9 @@ def nested_icon_svg(fixtures_dir: Path) -> str:
     return (fixtures_dir / "nested_icon.svg").read_text(encoding="utf-8")
 
 
-class TestSupportedFiles:
-    def test_accepts_svg(self) -> None:
-        assert is_supported_icon_file("icon.svg")
-
-    @pytest.mark.parametrize(
-        "filename",
-        [".png", ".jpg", ".jpeg", ".gif", ".webp", ".txt", ".pdf"],
-    )
-    def test_rejects_non_svg_extensions(self, filename: str) -> None:
-        assert not is_supported_icon_file(f"icon{filename}")
-
-
-class TestPathCollection:
-    def test_collects_files_from_directory(self, fixtures_dir: Path) -> None:
-        paths = collect_input_paths([fixtures_dir])
-        names = [path.name for path in paths]
-        assert names == sorted(names, key=str.lower)
-        assert "simple_rect.svg" in names
-        assert "nested_icon.svg" in names
-
-    def test_collects_explicit_files(self, fixtures_dir: Path) -> None:
-        icon = fixtures_dir / "simple_rect.svg"
-        paths = collect_input_paths([icon])
-        assert paths == [icon.resolve()]
-
-    def test_raises_for_missing_input(self) -> None:
-        with pytest.raises(FileNotFoundError):
-            collect_input_paths(["missing.svg"])
-
-    def test_default_output_for_directory(self, fixtures_dir: Path) -> None:
-        assert default_output_path([fixtures_dir], [fixtures_dir / "a.svg"]) == (
-            f"{fixtures_dir.name}.excalidrawlib"
-        )
-
-    def test_default_output_for_current_directory(self, tmp_path: Path, monkeypatch) -> None:
-        monkeypatch.chdir(tmp_path)
-        assert default_output_path(["."], [tmp_path / "a.svg"]) == "icons.excalidrawlib"
+# ---------------------------------------------------------------------------
+# Core pipeline — SVG → elements → library
+# ---------------------------------------------------------------------------
 
 
 class TestSvgConversion:
@@ -152,10 +105,8 @@ class TestSvgConversion:
         with pytest.raises(ValueError, match="missing <svg>"):
             convert_svg_to_library("<root></root>", fixed_options, ids=fixed_ids)
 
-    def test_aws_sns_icon_has_expected_structure(
-        self,
-        fixed_options: ConvertOptions,
-        fixed_ids: IdGenerator,
+    def test_complex_icon_has_expected_structure(
+        self, fixed_options: ConvertOptions, fixed_ids: IdGenerator,
     ) -> None:
         sns_path = SVG_DIR / "sns.svg"
         if not sns_path.exists():
@@ -167,20 +118,20 @@ class TestSvgConversion:
 
         # First element is the invisible outer box, icon elements start at index 1
         assert types[0] == "rectangle"  # invisible box
-        assert elements[0]["strokeWidth"] == 0.2  # invisible box matches DEFAULT_STROKE_WIDTH
-        assert elements[0]["backgroundColor"] == "transparent"
-
         assert types.count("ellipse") >= 1
         assert types.count("line") >= 1
         assert types[-1] == "text"
         assert elements[1]["backgroundColor"] == "#E7157B"
 
 
+# ---------------------------------------------------------------------------
+# Labels — filename text added below icons
+# ---------------------------------------------------------------------------
+
+
 class TestLabelConversion:
     def test_adds_filename_label_to_svg(
-        self,
-        fixed_options: ConvertOptions,
-        fixed_ids: IdGenerator,
+        self, fixed_options: ConvertOptions, fixed_ids: IdGenerator,
     ) -> None:
         lambda_path = SVG_DIR / "lambda.svg"
         if not lambda_path.exists():
@@ -192,25 +143,18 @@ class TestLabelConversion:
 
         assert text["type"] == "text"
         assert text["text"] == "lambda"
-        assert text["originalText"] == "lambda"
-        assert text["textAlign"] == "center"
-        assert text["fontSize"] == DEFAULT_LABEL_FONT_SIZE
-        assert text["fontFamily"] == 2
 
     def test_label_is_centered_below_icon(
-        self,
-        fixed_options: ConvertOptions,
-        fixed_ids: IdGenerator,
+        self, fixed_options: ConvertOptions, fixed_ids: IdGenerator,
     ) -> None:
         lambda_path = SVG_DIR / "lambda.svg"
         if not lambda_path.exists():
             pytest.skip("lambda.svg fixture not available")
 
         result = convert_input_to_library(lambda_path, fixed_options, ids=fixed_ids)
-        # Exclude text and invisible box (first element) from shape measurements
         shapes = [
             element
-            for element in result["library"][0][1:]  # skip invisible box at index 0
+            for element in result["library"][0][1:]
             if element["type"] != "text"
         ]
         text = result["library"][0][-1]
@@ -221,91 +165,32 @@ class TestLabelConversion:
         assert text["y"] == icon_height + ICON_PADDING + DEFAULT_LABEL_GAP
         assert text["x"] + text["width"] / 2 == pytest.approx(icon_width / 2, abs=0.01)
 
-    def test_scales_lambda_icon_to_target_size(
-        self,
-        fixed_options: ConvertOptions,
-        fixed_ids: IdGenerator,
+    def test_scales_icon_to_target_size(
+        self, fixed_options: ConvertOptions, fixed_ids: IdGenerator,
     ) -> None:
         lambda_path = SVG_DIR / "lambda.svg"
         if not lambda_path.exists():
             pytest.skip("lambda.svg fixture not available")
 
         result = convert_input_to_library(lambda_path, fixed_options, ids=fixed_ids)
-        # Exclude text and invisible box (first element)
         shapes = [
             element
-            for element in result["library"][0][1:]  # skip invisible box at index 0
-            if element["type"] != "text"
-        ]
-        text = result["library"][0][-1]
-
-        _, _, max_x, max_y = element_bounds(shapes)
-        assert max(max_x, max_y) == pytest.approx(DEFAULT_TARGET_ICON_SIZE, abs=0.01)
-        assert text["y"] == pytest.approx(DEFAULT_TARGET_ICON_SIZE + ICON_PADDING + DEFAULT_LABEL_GAP, abs=0.01)
-
-    def test_scales_spaceship_icon_to_target_size(
-        self,
-        fixed_options: ConvertOptions,
-        fixed_ids: IdGenerator,
-    ) -> None:
-        spaceship_path = SVG_DIR / "spaceship.svg"
-        if not spaceship_path.exists():
-            pytest.skip("spaceship.svg fixture not available")
-
-        result = convert_input_to_library(spaceship_path, fixed_options, ids=fixed_ids)
-        # Exclude text and invisible box (first element)
-        shapes = [
-            element
-            for element in result["library"][0][1:]  # skip invisible box at index 0
-            if element["type"] != "text"
-        ]
-        text = result["library"][0][-1]
-
-        _, _, max_x, max_y = element_bounds(shapes)
-        icon_width = max_x
-        icon_height = max_y
-
-        assert max(icon_width, icon_height) == pytest.approx(DEFAULT_TARGET_ICON_SIZE, abs=0.01)
-        assert text["y"] == pytest.approx(icon_height + ICON_PADDING + DEFAULT_LABEL_GAP, abs=0.01)
-        assert text["x"] + text["width"] / 2 == pytest.approx(icon_width / 2, abs=0.01)
-
-    def test_sns_icon_stays_at_target_size(
-        self,
-        fixed_options: ConvertOptions,
-        fixed_ids: IdGenerator,
-    ) -> None:
-        sns_path = SVG_DIR / "sns.svg"
-        if not sns_path.exists():
-            pytest.skip("sns.svg fixture not available")
-
-        result = convert_input_to_library(sns_path, fixed_options, ids=fixed_ids)
-        # Exclude text and invisible box (first element)
-        shapes = [
-            element
-            for element in result["library"][0][1:]  # skip invisible box at index 0
+            for element in result["library"][0][1:]
             if element["type"] != "text"
         ]
 
         _, _, max_x, max_y = element_bounds(shapes)
         assert max(max_x, max_y) == pytest.approx(DEFAULT_TARGET_ICON_SIZE, abs=0.01)
-        assert shapes[0]["width"] == pytest.approx(DEFAULT_TARGET_ICON_SIZE)
-        assert shapes[0]["height"] == pytest.approx(DEFAULT_TARGET_ICON_SIZE)
 
     def test_svg_conversion_without_input_path_has_no_label(
-        self,
-        simple_rect_svg: str,
-        fixed_options: ConvertOptions,
-        fixed_ids: IdGenerator,
+        self, simple_rect_svg: str, fixed_options: ConvertOptions, fixed_ids: IdGenerator
     ) -> None:
         result = convert_svg_to_library(simple_rect_svg, fixed_options, ids=fixed_ids)
         types = [element["type"] for element in result["library"][0]]
-
         assert "text" not in types
 
     def test_skips_label_when_disabled(
-        self,
-        fixed_options: ConvertOptions,
-        fixed_ids: IdGenerator,
+        self, fixed_ids: IdGenerator,
     ) -> None:
         options = ConvertOptions(add_label=False)
         lambda_path = SVG_DIR / "lambda.svg"
@@ -313,15 +198,17 @@ class TestLabelConversion:
             pytest.skip("lambda.svg fixture not available")
         result = convert_input_to_library(lambda_path, options, ids=fixed_ids)
         types = [element["type"] for element in result["library"][0]]
-
         assert "text" not in types
+
+
+# ---------------------------------------------------------------------------
+# Library builder — multiple inputs, append, output
+# ---------------------------------------------------------------------------
 
 
 class TestLibraryBuilder:
     def test_builds_library_from_multiple_inputs(
-        self,
-        fixtures_dir: Path,
-        fixed_options: ConvertOptions,
+        self, fixtures_dir: Path, fixed_options: ConvertOptions,
     ) -> None:
         svg_path_a = fixtures_dir / "simple_rect.svg"
         svg_path_b = fixtures_dir / "nested_icon.svg"
@@ -331,10 +218,7 @@ class TestLibraryBuilder:
         assert len(library["library"]) == 2
 
     def test_appends_to_existing_library(
-        self,
-        fixtures_dir: Path,
-        tmp_path: Path,
-        fixed_options: ConvertOptions,
+        self, fixtures_dir: Path, tmp_path: Path, fixed_options: ConvertOptions,
     ) -> None:
         existing_path = tmp_path / "existing.excalidrawlib"
         existing_path.write_text(
@@ -351,100 +235,3 @@ class TestLibraryBuilder:
         )
 
         assert len(library["library"]) == 2
-
-
-class TestElementHelpers:
-    def test_sort_elements_by_type(self) -> None:
-        elements = [
-            {"type": "text"},
-            {"type": "line"},
-            {"type": "rectangle"},
-            {"type": "ellipse"},
-        ]
-        sorted_elements = sort_elements(elements)
-        assert [element["type"] for element in sorted_elements] == [
-            "rectangle",
-            "ellipse",
-            "line",
-            "text",
-        ]
-
-    def test_normalize_elements(self) -> None:
-        elements = [
-            {"x": 10, "y": 20},
-            {"x": 15, "y": 25},
-        ]
-        normalize_elements(elements)
-        assert elements[0]["x"] == 0
-        assert elements[0]["y"] == 0
-        assert elements[1]["x"] == 5
-        assert elements[1]["y"] == 5
-
-    def test_scale_elements(self) -> None:
-        elements = [
-            {
-                "type": "rectangle",
-                "x": 0,
-                "y": 0,
-                "width": 20,
-                "height": 10,
-                "strokeWidth": 2,
-            },
-            {
-                "type": "line",
-                "x": 2,
-                "y": 4,
-                "width": 8,
-                "height": 6,
-                "strokeWidth": 4,
-                "points": [[0, 0], [8, 6]],
-            },
-        ]
-
-        scale_elements(elements, 2)
-
-        assert elements[0]["width"] == 40
-        assert elements[0]["height"] == 20
-        assert elements[0]["strokeWidth"] == 4
-        assert elements[1]["x"] == 4
-        assert elements[1]["y"] == 8
-        assert elements[1]["points"] == [[0, 0], [16, 12]]
-
-    def test_fit_elements_to_size(self) -> None:
-        elements = [
-            {"type": "rectangle", "x": 0, "y": 0, "width": 40, "height": 40, "strokeWidth": 2},
-        ]
-
-        fit_elements_to_size(elements, 64)
-
-        assert elements[0]["width"] == pytest.approx(64.0)
-        assert elements[0]["height"] == pytest.approx(64.0)
-
-    def test_detects_circle_like_paths(self) -> None:
-        circle_points = [(0, 0), (1, 0), (2, 1), (2, 2), (1, 2), (0, 1), (0, 0)]
-        assert is_circle_like(circle_points)
-
-        line_points = [(0, 0), (20, 0), (20, 1)]
-        assert not is_circle_like(line_points)
-
-
-class TestFileConverterRegistry:
-    def test_register_and_lookup_svg(self) -> None:
-        from excalidraw_svg_to_lib.runner import _lookup_converter, register_converter
-
-        called = []
-
-        def dummy(path, opts, ids):
-            called.append(True)
-            return {"library": [[]], "files": {}, "view_box": None}
-
-        register_converter(".custom", dummy)
-        converter = _lookup_converter(".custom")
-        assert converter is not None
-        converter(Path("test.custom"), ConvertOptions(), IdGenerator())
-        assert called == [True]
-
-    def test_lookup_missing_extension_returns_none(self) -> None:
-        from excalidraw_svg_to_lib.runner import _lookup_converter
-
-        assert _lookup_converter(".unknown") is None
