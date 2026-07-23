@@ -343,6 +343,24 @@ def _convert_polyline(
     return [finalized] if finalized is not None else []
 
 
+# SVG elements whose children should never be converted to visible output
+_NON_RENDERING = frozenset({
+    "defs",
+    "clipPath",
+    "mask",
+    "pattern",
+    "linearGradient",
+    "radialGradient",
+    "filter",
+    "marker",
+    "symbol",
+    "style",
+    "title",
+    "desc",
+    "metadata",
+})
+
+
 def _convert_element(
     element,
     style: dict[str, Any],
@@ -375,8 +393,10 @@ def _convert_element(
             apply_transform_to_element(current_transform, elem)
     output.extend(new_elements)
 
-    for child in element:
-        _convert_element(child, node_style, current_transform, group_id, ids, output)
+    # Do not recurse into non-rendering elements (defs, clipPath, masks, etc.)
+    if tag not in _NON_RENDERING:
+        for child in element:
+            _convert_element(child, node_style, current_transform, group_id, ids, output)
 
 
 # Registry of SVG tag → converter function (all have signature (attrs, style, gid, ids) -> list)
