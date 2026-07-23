@@ -1,13 +1,40 @@
 from __future__ import annotations
 
+import math
+
 from svg.path import Arc, Close, CubicBezier, Line, Move, Path, QuadraticBezier, parse_path
 
-from excalidraw_svg_to_lib.constants import CURVE_SAMPLES
+from excalidraw_svg_to_lib.constants import CURVE_SAMPLES, MIN_ARC_SAMPLES
 from excalidraw_svg_to_lib.elements import Point
 
 
 def _complex_to_point(value: complex) -> Point:
     return (value.real, value.imag)
+
+
+def _arc_samples(arc: Arc) -> int:
+    """Return an adaptive sample count for an SVG arc segment.
+
+    Scales linearly with the arc's angular extent so that large arcs
+    are smooth while tiny arcs don't waste samples.  Clamped to
+    ``[MIN_ARC_SAMPLES, CURVE_SAMPLES]``.
+    """
+    # angular extent in radians (0 … 2π)
+    delta = abs(arc.theta) - arc.delta if arc.delta < 0 else arc.delta
+    if delta <= 0:
+        return MIN_ARC_SAMPLES
+    extent = min(abs(delta), 2 * math.pi)
+    count = int(CURVE_SAMPLES * extent / (math.pi / 2))  # scale: 90° → CURVE_SAMPLES
+    return max(MIN_ARC_SAMPLES, min(count, CURVE_SAMPLES * 2))
+
+
+def _sample_arc(arc: Arc, samples: int) -> list[Point]:
+    """Sample *arc* at *samples* evenly-spaced parameter values."""
+    points: list[Point] = []
+    for i in range(1, samples + 1):
+        point = arc.point(i / samples)
+        points.append(_complex_to_point(point))
+    return points
 
 
 def _sample_cubic(
@@ -91,9 +118,8 @@ def path_commands_to_points(path_data: str) -> list[list[Point]]:
             current.extend(sampled)
             cursor = _complex_to_point(segment.end)
         elif isinstance(segment, Arc):
-            for index in range(1, CURVE_SAMPLES + 1):
-                point = segment.point(index / CURVE_SAMPLES)
-                current.append(_complex_to_point(point))
+            samples = _arc_samples(segment)
+            current.extend(_sample_arc(segment, samples))
             cursor = _complex_to_point(segment.end)
         elif isinstance(segment, Close):
             if current:

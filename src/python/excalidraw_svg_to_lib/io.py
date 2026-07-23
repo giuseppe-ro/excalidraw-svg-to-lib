@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any, cast
 
 from excalidraw_svg_to_lib.constants import SUPPORTED_ICON_EXTENSIONS
 
@@ -82,21 +83,14 @@ def resolve_output_path(
     return Path(default_output_path(raw_inputs, resolved_inputs))
 
 
-def read_json(path: str | Path) -> dict:
-    return json.loads(Path(path).read_text(encoding="utf-8"))
+def read_json(path: str | Path) -> dict[str, Any]:
+    return cast(dict[str, Any], json.loads(Path(path).read_text(encoding="utf-8")))
 
 
 def write_library_file(
-    library_file: dict,
+    library_file: dict[str, Any],
     output_path: str | Path,
-    *,
-    exclude_keys: tuple[str, ...] = ("metadata",),
 ) -> None:
-    payload = {
-        key: value
-        for key, value in library_file.items()
-        if key not in exclude_keys
-    }
     out = Path(output_path)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(f"{json.dumps(payload, indent=2)}\n", encoding="utf-8")
+    out.write_text(f"{json.dumps(library_file, indent=2)}\n", encoding="utf-8")

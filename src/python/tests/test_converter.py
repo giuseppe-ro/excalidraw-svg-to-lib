@@ -55,11 +55,7 @@ class TestSvgConversion:
     ) -> None:
         result = convert_svg_to_library(simple_rect_svg, fixed_options, ids=fixed_ids)
 
-        assert result["type"] == "excalidrawlib"
-        assert result["version"] == 1
-        assert len(result["library"]) == 1
-
-        elements = result["library"][0]
+        elements = result["elements"]
         assert len(elements) == 1
         rectangle = elements[0]
         assert rectangle["type"] == "rectangle"
@@ -73,7 +69,7 @@ class TestSvgConversion:
         self, simple_rect_svg: str, fixed_options: ConvertOptions, fixed_ids: IdGenerator
     ) -> None:
         result = convert_svg_to_library(simple_rect_svg, fixed_options, ids=fixed_ids)
-        rectangle = result["library"][0][0]
+        rectangle = result["elements"][0]
         assert rectangle["x"] == 0
         assert rectangle["y"] == 0
 
@@ -81,7 +77,7 @@ class TestSvgConversion:
         unnormalized = convert_svg_to_library(
             simple_rect_svg, unnormalized_options, ids=fixed_ids
         )
-        raw_rectangle = unnormalized["library"][0][0]
+        raw_rectangle = unnormalized["elements"][0]
         assert raw_rectangle["x"] == 4
         assert raw_rectangle["y"] == 6
 
@@ -89,7 +85,7 @@ class TestSvgConversion:
         self, nested_icon_svg: str, fixed_options: ConvertOptions, fixed_ids: IdGenerator
     ) -> None:
         result = convert_svg_to_library(nested_icon_svg, fixed_options, ids=fixed_ids)
-        elements = result["library"][0]
+        elements = result["elements"]
         types = [element["type"] for element in elements]
 
         assert types[0] == "rectangle"
@@ -172,7 +168,7 @@ class TestLabelConversion:
         self, simple_rect_svg: str, fixed_options: ConvertOptions, fixed_ids: IdGenerator
     ) -> None:
         result = convert_svg_to_library(simple_rect_svg, fixed_options, ids=fixed_ids)
-        types = [element["type"] for element in result["library"][0]]
+        types = [element["type"] for element in result["elements"]]
         assert "text" not in types
 
     def test_skips_label_when_disabled(

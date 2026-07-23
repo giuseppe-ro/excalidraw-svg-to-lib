@@ -18,13 +18,16 @@ jobs:
     steps:
     - uses: actions/checkout@v5
 
-    - name: Set up Python 3.14
+    - name: Set up Python
       uses: actions/setup-python@v6
       with:
-        python-version: "3.14"
+        python-version: "3.12"
 
     - name: Install dependencies
       run: bash scripts/setup.sh
+
+    - name: Type check (mypy)
+      run: mypy src/python/excalidraw_svg_to_lib --strict
 
     - name: Lint
       run: bash scripts/lint.sh

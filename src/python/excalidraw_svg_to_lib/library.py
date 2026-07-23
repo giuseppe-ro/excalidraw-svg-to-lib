@@ -1,11 +1,22 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 from excalidraw_svg_to_lib.id_generator import IdGenerator
 from excalidraw_svg_to_lib.io import read_json
+
+
+class NamedLibraryItem(TypedDict):
+    """A v2 library item with a name and elements list."""
+    elements: list[dict[str, Any]]
+    name: str
+
+
+# A library item is either a plain element list (v1) or a named tuple (v2).
+LibraryItem = list[dict[str, Any]] | NamedLibraryItem
 
 
 def make_v2_item(
@@ -30,7 +41,7 @@ def make_v2_item(
 
 
 def make_library_file(
-    items: list[list[dict[str, Any]]] | list[tuple[list[dict[str, Any]], str]],
+    items: Sequence[LibraryItem],
     files: dict[str, Any] | None = None,
     *,
     format_version: int = 1,
@@ -43,13 +54,18 @@ def make_library_file(
 
 
 def _make_v1_file(
-    items: list[list[dict[str, Any]]] | list[tuple[list[dict[str, Any]], str]],
+    items: Sequence[LibraryItem],
     files: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    def _unwrap(item: LibraryItem) -> list[dict[str, Any]]:
+        if isinstance(item, list):
+            return item
+        return item["elements"]
+
     library_file: dict[str, Any] = {
         "type": "excalidrawlib",
         "version": 1,
-        "library": [item if isinstance(item, list) else item[0] for item in items],
+        "library": [_unwrap(item) for item in items],
     }
     if files:
         library_file["files"] = files
@@ -57,16 +73,16 @@ def _make_v1_file(
 
 
 def _make_v2_file(
-    items: list[list[dict[str, Any]]] | list[tuple[list[dict[str, Any]], str]],
+    items: Sequence[LibraryItem],
     files: dict[str, Any] | None = None,
     ids: IdGenerator | None = None,
 ) -> dict[str, Any]:
     library_items: list[dict[str, Any]] = []
     for item in items:
-        if isinstance(item, tuple):
-            elements, name = item
-        else:
+        if isinstance(item, list):
             elements, name = item, ""
+        else:
+            elements, name = item["elements"], item["name"]
         library_items.append(make_v2_item(elements, name, ids))
 
     library_file: dict[str, Any] = {
@@ -87,7 +103,7 @@ def _make_v2_file(
 
 def _get_library_items(
     data: dict[str, Any],
-) -> tuple[str, list]:
+) -> tuple[str, list[Any]]:
     """Return ``(key, items)`` for whichever library format is present."""
     if "libraryItems" in data and isinstance(data["libraryItems"], list):
         return "libraryItems", data["libraryItems"]
@@ -113,25 +129,34 @@ def append_to_existing(
 
     # Determine which items to append from the new file
     if "libraryItems" in library_file:
-        new_items = library_file["libraryItems"]
-        target_key = "libraryItems"
+        new_items = list(library_file["libraryItems"])
+        new_format = "v2"
     elif "library" in library_file:
-        new_items = library_file["library"]
-        target_key = "library"
+        new_items = list(library_file["library"])
+        new_format = "v1"
     else:
         raise ValueError("New library file has no 'library' or 'libraryItems' key")
 
-    merged_items = list(existing_items) + list(new_items)
+    # Normalise cross-format appends to keep a single consistent key.
+    # v2 → v1: strip metadata, keep only the elements array.
+    # v1 → v2: wrap bare element arrays with a minimal v2 item.
+    if existing_key == "library" and new_format == "v2":
+        new_items = [
+            item["elements"] if isinstance(item, dict) else item
+            for item in new_items
+        ]
+    elif existing_key == "libraryItems" and new_format == "v1":
+        new_items = [
+            make_v2_item(item if isinstance(item, list) else item["elements"], "")
+            for item in new_items
+        ]
+
+    merged_items = list(existing_items) + new_items
 
     result: dict[str, Any] = {
         **existing,
         existing_key: merged_items,
     }
-
-    # If the new items use a different key than the existing file,
-    # also set that key so the result has both formats
-    if target_key != existing_key:
-        result[target_key] = merged_items
 
     # Merge files
     result["files"] = {**(existing.get("files") or {}), **(library_file.get("files") or {})}
