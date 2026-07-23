@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import random
 from pathlib import Path
 
 import pytest
@@ -22,29 +21,27 @@ from excalidraw_svg_to_lib.options import ConvertOptions
 from excalidraw_svg_to_lib.elements import element_bounds
 
 
+def _require_svg(name: str) -> Path:
+    """Return path to an SVG fixture, skipping the test if missing."""
+    path = SVG_DIR / name
+    if not path.exists():
+        pytest.skip(f"{name} fixture not available")
+    return path
+
+
 @pytest.fixture
 def fixed_options() -> ConvertOptions:
     return ConvertOptions(normalize=True, format_version=1)
 
 
 @pytest.fixture
-def fixed_ids() -> IdGenerator:
-    return IdGenerator(rng=random.Random(42))
+def simple_rect_svg() -> str:
+    return (FIXTURES_DIR / "simple_rect.svg").read_text(encoding="utf-8")
 
 
 @pytest.fixture
-def fixtures_dir() -> Path:
-    return FIXTURES_DIR
-
-
-@pytest.fixture
-def simple_rect_svg(fixtures_dir: Path) -> str:
-    return (fixtures_dir / "simple_rect.svg").read_text(encoding="utf-8")
-
-
-@pytest.fixture
-def nested_icon_svg(fixtures_dir: Path) -> str:
-    return (fixtures_dir / "nested_icon.svg").read_text(encoding="utf-8")
+def nested_icon_svg() -> str:
+    return (FIXTURES_DIR / "nested_icon.svg").read_text(encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------
@@ -82,7 +79,7 @@ class TestSvgConversion:
 
         unnormalized_options = ConvertOptions(normalize=False, scale_to_target=False)
         unnormalized = convert_svg_to_library(
-            simple_rect_svg, unnormalized_options, ids=IdGenerator(rng=random.Random(42))
+            simple_rect_svg, unnormalized_options, ids=fixed_ids
         )
         raw_rectangle = unnormalized["library"][0][0]
         assert raw_rectangle["x"] == 4
@@ -108,10 +105,7 @@ class TestSvgConversion:
     def test_complex_icon_has_expected_structure(
         self, fixed_options: ConvertOptions, fixed_ids: IdGenerator,
     ) -> None:
-        sns_path = SVG_DIR / "sns.svg"
-        if not sns_path.exists():
-            pytest.skip("AWS SNS fixture not available")
-
+        sns_path = _require_svg("sns.svg")
         result = convert_input_to_library(sns_path, fixed_options, ids=fixed_ids)
         elements = result["library"][0]
         types = [element["type"] for element in elements]
@@ -134,10 +128,7 @@ class TestLabelConversion:
     def test_adds_filename_label_to_svg(
         self, fixed_options: ConvertOptions, fixed_ids: IdGenerator,
     ) -> None:
-        lambda_path = SVG_DIR / "lambda.svg"
-        if not lambda_path.exists():
-            pytest.skip("lambda.svg fixture not available")
-
+        lambda_path = _require_svg("lambda.svg")
         result = convert_input_to_library(lambda_path, fixed_options, ids=fixed_ids)
         elements = result["library"][0]
         text = elements[-1]
@@ -148,10 +139,7 @@ class TestLabelConversion:
     def test_label_is_centered_below_icon(
         self, fixed_options: ConvertOptions, fixed_ids: IdGenerator,
     ) -> None:
-        lambda_path = SVG_DIR / "lambda.svg"
-        if not lambda_path.exists():
-            pytest.skip("lambda.svg fixture not available")
-
+        lambda_path = _require_svg("lambda.svg")
         result = convert_input_to_library(lambda_path, fixed_options, ids=fixed_ids)
         shapes = [
             element
@@ -169,10 +157,7 @@ class TestLabelConversion:
     def test_scales_icon_to_target_size(
         self, fixed_options: ConvertOptions, fixed_ids: IdGenerator,
     ) -> None:
-        lambda_path = SVG_DIR / "lambda.svg"
-        if not lambda_path.exists():
-            pytest.skip("lambda.svg fixture not available")
-
+        lambda_path = _require_svg("lambda.svg")
         result = convert_input_to_library(lambda_path, fixed_options, ids=fixed_ids)
         shapes = [
             element
@@ -194,9 +179,7 @@ class TestLabelConversion:
         self, fixed_ids: IdGenerator,
     ) -> None:
         options = ConvertOptions(add_label=False)
-        lambda_path = SVG_DIR / "lambda.svg"
-        if not lambda_path.exists():
-            pytest.skip("lambda.svg fixture not available")
+        lambda_path = _require_svg("lambda.svg")
         result = convert_input_to_library(lambda_path, options, ids=fixed_ids)
         types = [element["type"] for element in result["library"][0]]
         assert "text" not in types
@@ -209,10 +192,10 @@ class TestLabelConversion:
 
 class TestLibraryBuilder:
     def test_builds_library_from_multiple_inputs(
-        self, fixtures_dir: Path, fixed_options: ConvertOptions,
+        self, fixed_options: ConvertOptions,
     ) -> None:
-        svg_path_a = fixtures_dir / "simple_rect.svg"
-        svg_path_b = fixtures_dir / "nested_icon.svg"
+        svg_path_a = FIXTURES_DIR / "simple_rect.svg"
+        svg_path_b = FIXTURES_DIR / "nested_icon.svg"
 
         library_items = []
         for path in [svg_path_a, svg_path_b]:
@@ -225,7 +208,7 @@ class TestLibraryBuilder:
         assert len(library["library"]) == 2
 
     def test_appends_to_existing_library(
-        self, fixtures_dir: Path, tmp_path: Path, fixed_options: ConvertOptions,
+        self, tmp_path: Path, fixed_options: ConvertOptions,
     ) -> None:
         existing_path = tmp_path / "existing.excalidrawlib"
         existing_path.write_text(
@@ -235,7 +218,7 @@ class TestLibraryBuilder:
             encoding="utf-8",
         )
 
-        converted = convert_input_to_library(fixtures_dir / "simple_rect.svg", fixed_options)
+        converted = convert_input_to_library(FIXTURES_DIR / "simple_rect.svg", fixed_options)
         library = make_library_file([converted["library"][0]], format_version=1)
         library = append_to_existing(library, existing_path)
 

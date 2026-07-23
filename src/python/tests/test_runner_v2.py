@@ -3,24 +3,15 @@
 from __future__ import annotations
 
 import json
-import random
 from pathlib import Path
-
-import pytest
 
 from tests.conftest import FIXTURES_DIR
 
 from excalidraw_svg_to_lib.cli import main
 from excalidraw_svg_to_lib.runner import convert_input_to_library
-from excalidraw_svg_to_lib.id_generator import IdGenerator
 
 
-@pytest.fixture
-def fixed_ids() -> IdGenerator:
-    return IdGenerator(rng=random.Random(42))
-
-
-def test_returns_icon_name_from_filename(fixed_ids: IdGenerator) -> None:
+def test_returns_icon_name_from_filename(fixed_ids) -> None:
     """convert_input_to_library returns icon_name derived from filename stem."""
     result = convert_input_to_library(FIXTURES_DIR / "simple_rect.svg", ids=fixed_ids)
     assert result["icon_name"] == "simple_rect"

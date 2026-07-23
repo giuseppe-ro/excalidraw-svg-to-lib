@@ -11,7 +11,6 @@ from excalidraw_svg_to_lib.elements import (
     fit_elements_to_size,
     icon_group_id,
     normalize_elements,
-    normalize_stroke_width,
     sort_elements,
 )
 from excalidraw_svg_to_lib.id_generator import IdGenerator
@@ -23,13 +22,11 @@ def _apply_options(
     elements: list[dict[str, Any]],
     options: ConvertOptions,
 ) -> list[dict[str, Any]]:
-    """Apply normalize, scale, and stroke-width options to elements."""
+    """Apply normalize and scale options to elements."""
     if options.normalize:
         elements = normalize_elements(elements)
     if options.scale_to_target:
         elements = fit_elements_to_size(elements, options.target_icon_size)
-    if options.uniform_stroke_width is not None:
-        elements = normalize_stroke_width(elements, options.uniform_stroke_width)
     return elements
 
 
@@ -38,7 +35,7 @@ def convert_svg_to_library(
     options: ConvertOptions | None = None,
     ids: IdGenerator | None = None,
 ) -> dict[str, Any]:
-    """Convert raw SVG text into a library payload (no label added)."""
+    """Convert raw SVG text into an elements list (no label added)."""
     resolved_options = options or ConvertOptions()
     id_generator = ids or IdGenerator()
     elements, view_box = svg_to_elements(svg_content, id_generator)
@@ -68,10 +65,8 @@ def convert_input_to_library(
 
     resolved_options = options or ConvertOptions()
     id_generator = ids or IdGenerator()
-
-    elements, view_box = svg_to_elements(path.read_text(encoding="utf-8"), id_generator)
-    elements = _apply_options(elements, resolved_options)
-
+    result = convert_svg_to_library(path.read_text(encoding="utf-8"), resolved_options, id_generator)
+    elements = result["library"][0]
     icon_name = path.stem
 
     if resolved_options.add_label:
@@ -88,13 +83,13 @@ def convert_input_to_library(
             icon_name, outer_box_x, outer_box_width, label_y, id_generator, group_id
         )
 
-        elements.insert(0, invisible_box)
-        elements.append(label)
+        elements = [invisible_box] + elements + [label]
+        elements = sort_elements(elements)
 
     return {
         "type": "excalidrawlib",
         "version": resolved_options.format_version,
-        "library": [sort_elements(elements)],
+        "library": [elements],
         "icon_name": icon_name,
-        "view_box": view_box,
+        "view_box": result["view_box"],
     }

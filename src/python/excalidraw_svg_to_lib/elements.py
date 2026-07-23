@@ -24,7 +24,7 @@ Point = tuple[float, float]
 # ---------------------------------------------------------------------------
 
 
-def _base_element(element_type: str, group_id: str, ids: IdGenerator) -> dict[str, Any]:
+def create_base_element(element_type: str, group_id: str, ids: IdGenerator) -> dict[str, Any]:
     """Create the common fields shared by all Excalidraw elements."""
     return {
         "type": element_type,
@@ -66,10 +66,6 @@ def apply_paint_style(element: dict[str, Any], style: dict[str, Any]) -> None:
     element["opacity"] = style.get("opacity", 100)
 
 
-def create_base_element(element_type: str, group_id: str, ids: IdGenerator) -> dict[str, Any]:
-    return _base_element(element_type, group_id, ids)
-
-
 def finalize_linear_element(
     element: dict[str, Any],
     absolute_points: list[Point],
@@ -105,7 +101,7 @@ def create_invisible_box_element(
     """Create an invisible rectangle around the icon that arrows can snap to."""
     min_x, min_y, max_x, max_y = icon_bounds
     return {
-        **_base_element("rectangle", group_id, ids),
+        **create_base_element("rectangle", group_id, ids),
         "strokeColor": "transparent",
         "strokeWidth": 0,
         "backgroundColor": "transparent",
@@ -130,21 +126,7 @@ def create_label_element(
     font_size = DEFAULT_LABEL_FONT_SIZE
     line_height = DEFAULT_LABEL_LINE_HEIGHT
     return {
-        "type": "text",
-        "version": 1,
-        "versionNonce": ids.random_int(),
-        "isDeleted": False,
-        "id": ids.random_id(),
-        "fillStyle": "solid",
-        "strokeWidth": DEFAULT_STROKE_WIDTH,
-        "strokeStyle": "solid",
-        "roughness": 0,
-        "opacity": 100,
-        "angle": 0,
-        "strokeColor": DEFAULT_STROKE,
-        "backgroundColor": DEFAULT_FILL,
-        "seed": ids.random_int(),
-        "groupIds": [group_id],
+        **create_base_element("text", group_id, ids),
         "frameId": None,
         "roundness": None,
         "boundElements": None,
@@ -238,18 +220,6 @@ def _scale_elements(elements: list[dict[str, Any]], scale: float) -> list[dict[s
         points = element.get("points")
         if points:
             element["points"] = [[p[0] * scale, p[1] * scale] for p in points]
-    return elements
-
-
-def normalize_stroke_width(
-    elements: list[dict[str, Any]],
-    target: float,
-) -> list[dict[str, Any]]:
-    """Set all element strokeWidths to a uniform value."""
-    if target <= 0:
-        raise ValueError("Stroke width must be positive")
-    for element in elements:
-        element["strokeWidth"] = target
     return elements
 
 

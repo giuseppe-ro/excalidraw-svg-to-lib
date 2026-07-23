@@ -93,7 +93,7 @@ def test_cli_warns_and_skips_unsupported_files_in_directory(tmp_path: Path, monk
     # Should warn about the unsupported files
     assert "readme.txt" in captured.err
     assert "data.json" in captured.err
-    assert "WARN" in captured.err.upper() or "warn" in captured.err.lower()
+    assert "WARN:" in captured.err
 
     # Should still convert valid SVGs
     assert output_path.exists()
@@ -118,7 +118,7 @@ def test_cli_warns_and_skips_unsupported_single_file(tmp_path: Path, monkeypatch
 
     captured = capsys.readouterr()
     assert "icon.txt" in captured.err
-    assert "WARN" in captured.err.upper() or "warn" in captured.err.lower()
+    assert "WARN:" in captured.err
 
     # No output file since all inputs were skipped
     assert not output_path.exists()

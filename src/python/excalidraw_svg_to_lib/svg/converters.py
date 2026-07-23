@@ -296,25 +296,47 @@ def _convert_line(
     return [finalized] if finalized is not None else []
 
 
-def _convert_polygon_like(
+def _convert_poly_points(
     attributes: dict[str, str],
-    style: dict[str, Any],
-    group_id: str,
-    ids: IdGenerator,
     close_path: bool,
-) -> list[dict[str, Any]]:
+) -> list[Point]:
+    """Parse SVG polygon/polyline points attribute into a list of (x, y) tuples."""
     raw_points = attributes.get("points", "").replace(",", " ").split()
     numbers = [float(value) for value in raw_points if value]
     points: list[Point] = [
         (numbers[index], numbers[index + 1]) for index in range(0, len(numbers) - 1, 2)
     ]
-
     if len(points) < 2:
         return []
-
     if close_path:
         points.append(points[0])
+    return points
 
+
+def _convert_polygon(
+    attributes: dict[str, str],
+    style: dict[str, Any],
+    group_id: str,
+    ids: IdGenerator,
+) -> list[dict[str, Any]]:
+    points = _convert_poly_points(attributes, close_path=True)
+    if not points:
+        return []
+    element = create_base_element("line", group_id, ids)
+    apply_paint_style(element, style)
+    finalized = finalize_linear_element(element, points)
+    return [finalized] if finalized is not None else []
+
+
+def _convert_polyline(
+    attributes: dict[str, str],
+    style: dict[str, Any],
+    group_id: str,
+    ids: IdGenerator,
+) -> list[dict[str, Any]]:
+    points = _convert_poly_points(attributes, close_path=False)
+    if not points:
+        return []
     element = create_base_element("line", group_id, ids)
     apply_paint_style(element, style)
     finalized = finalize_linear_element(element, points)
@@ -340,40 +362,29 @@ def _convert_element(
     else:
         current_transform = transform
 
-    converters = get_converters()
-    if tag in converters:
-        elem_style = inherit_style(node_style, element.attrib)
-        if tag == "path":
-            new_elements = converters[tag](element.attrib, elem_style, group_id, ids, output)
-        else:
-            new_elements = converters[tag](element.attrib, elem_style, group_id, ids)
-        # Apply accumulated transform to newly created elements
-        if current_transform != IDENTITY:
-            for elem in new_elements:
-                apply_transform_to_element(current_transform, elem)
-        output.extend(new_elements)
+    elem_style = inherit_style(node_style, element.attrib)
+    if tag in _CONVERTERS:
+        new_elements = _CONVERTERS[tag](element.attrib, elem_style, group_id, ids)
+    elif tag == "path":
+        new_elements = _convert_path(element.attrib, elem_style, group_id, ids, output)
+    else:
+        new_elements = []
+    # Apply accumulated transform to newly created elements
+    if current_transform != IDENTITY:
+        for elem in new_elements:
+            apply_transform_to_element(current_transform, elem)
+    output.extend(new_elements)
 
     for child in element:
         _convert_element(child, node_style, current_transform, group_id, ids, output)
 
 
-# Registry of SVG tag → converter function
-SVG_CONVERTERS: dict[str, callable] = {}
-
-
-def get_converters() -> dict[str, callable]:
-    if not SVG_CONVERTERS:
-        SVG_CONVERTERS.update({
-            "rect": lambda attrs, style, gid, ids, _o=None: _convert_rect(attrs, style, gid, ids),
-            "circle": lambda attrs, style, gid, ids, _o=None: _convert_circle(attrs, style, gid, ids),
-            "ellipse": lambda attrs, style, gid, ids, _o=None: _convert_ellipse(attrs, style, gid, ids),
-            "path": lambda attrs, style, gid, ids, output=None: _convert_path(attrs, style, gid, ids, output),
-            "line": lambda attrs, style, gid, ids, _o=None: _convert_line(attrs, style, gid, ids),
-            "polygon": lambda attrs, style, gid, ids, _o=None: _convert_polygon_like(
-                attrs, style, gid, ids, close_path=True
-            ),
-            "polyline": lambda attrs, style, gid, ids, _o=None: _convert_polygon_like(
-                attrs, style, gid, ids, close_path=False
-            ),
-        })
-    return SVG_CONVERTERS
+# Registry of SVG tag → converter function (all have signature (attrs, style, gid, ids) -> list)
+_CONVERTERS: dict[str, callable] = {
+    "rect": _convert_rect,
+    "circle": _convert_circle,
+    "ellipse": _convert_ellipse,
+    "line": _convert_line,
+    "polygon": _convert_polygon,
+    "polyline": _convert_polyline,
+}

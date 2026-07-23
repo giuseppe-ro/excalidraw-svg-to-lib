@@ -1,22 +1,22 @@
 from __future__ import annotations
 
-import random
+import math
 
 import pytest
 
-from excalidraw_svg_to_lib.id_generator import IdGenerator
 from excalidraw_svg_to_lib.svg.transforms import (
     IDENTITY,
     apply_transform_to_element,
     compose,
     parse_transform,
 )
+from excalidraw_svg_to_lib.id_generator import IdGenerator
 from excalidraw_svg_to_lib.svg.parser import svg_to_elements
 
 
 @pytest.fixture
-def ids() -> IdGenerator:
-    return IdGenerator(rng=random.Random(42))
+def ids(fixed_ids):
+    return fixed_ids
 
 
 # ---------------------------------------------------------------------------
@@ -80,7 +80,6 @@ class TestParseTransform:
         assert t is not None
 
     def test_rotate(self) -> None:
-        import math
         t = parse_transform("rotate(90)")
         assert t is not None
         cos90 = math.cos(math.radians(90))

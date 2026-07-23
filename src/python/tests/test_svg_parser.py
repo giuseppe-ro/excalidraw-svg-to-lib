@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import random
+import xml.etree.ElementTree as ET
 
 import pytest
 
@@ -8,53 +8,41 @@ from excalidraw_svg_to_lib.id_generator import IdGenerator
 from excalidraw_svg_to_lib.svg.parser import parse_view_box, svg_to_elements
 
 
-@pytest.fixture
-def ids() -> IdGenerator:
-    return IdGenerator(rng=random.Random(42))
-
-
 class TestParseViewBox:
     def test_parses_view_box_with_spaces(self) -> None:
-        import xml.etree.ElementTree as ET
-
         root = ET.fromstring('<svg viewBox="0 0 64 64"></svg>')
         vb = parse_view_box(root)
         assert vb == {"x": 0.0, "y": 0.0, "width": 64.0, "height": 64.0}
 
     def test_parses_view_box_with_commas(self) -> None:
-        import xml.etree.ElementTree as ET
-
         root = ET.fromstring('<svg viewBox="10,20,100,200"></svg>')
         vb = parse_view_box(root)
         assert vb == {"x": 10.0, "y": 20.0, "width": 100.0, "height": 200.0}
 
     def test_parses_view_box_with_mixed_separators(self) -> None:
-        import xml.etree.ElementTree as ET
-
         root = ET.fromstring('<svg viewBox="0,0 100 100"></svg>')
         vb = parse_view_box(root)
         assert vb == {"x": 0.0, "y": 0.0, "width": 100.0, "height": 100.0}
 
     def test_falls_back_to_width_height_attributes(self) -> None:
-        import xml.etree.ElementTree as ET
-
         root = ET.fromstring('<svg width="32" height="48"></svg>')
         vb = parse_view_box(root)
         assert vb == {"x": 0.0, "y": 0.0, "width": 32.0, "height": 48.0}
 
     def test_falls_back_to_width_height_with_px(self) -> None:
-        import xml.etree.ElementTree as ET
-
         root = ET.fromstring('<svg width="64px" height="64px"></svg>')
         vb = parse_view_box(root)
         assert vb == {"x": 0.0, "y": 0.0, "width": 64.0, "height": 64.0}
 
     def test_defaults_to_64x64_when_no_dimensions(self) -> None:
-        import xml.etree.ElementTree as ET
-
         root = ET.fromstring("<svg></svg>")
         vb = parse_view_box(root)
         assert vb == {"x": 0.0, "y": 0.0, "width": 64.0, "height": 64.0}
+
+
+@pytest.fixture
+def ids(fixed_ids):
+    return fixed_ids
 
 
 class TestSvgToElements:
