@@ -101,24 +101,31 @@ def _convert_circle_like_subpath(
     return element
 
 
-def _subpath_bounds(subpath: list[Point]) -> tuple[float, float, float, float]:
-    """Return (min_x, min_y, max_x, max_y) for a subpath."""
-    xs = [p[0] for p in subpath]
-    ys = [p[1] for p in subpath]
+def _subpath_bounds(points: list[Point]) -> tuple[float, float, float, float]:
+    xs = [p[0] for p in points]
+    ys = [p[1] for p in points]
     return min(xs), min(ys), max(xs), max(ys)
 
 
-def _subpath_area(subpath: list[Point]) -> float:
-    """Return the bounding-box area of a subpath."""
-    min_x, min_y, max_x, max_y = _subpath_bounds(subpath)
-    return (max_x - min_x) * (max_y - min_y)
+def _signed_area(points: list[Point]) -> float:
+    """Compute signed area of a polygon via the shoelace formula.
+
+    In screen coordinates (Y-down), a **positive** value indicates
+    clockwise winding and a **negative** value counter-clockwise.
+    """
+    area = 0.0
+    n = len(points)
+    for i in range(n):
+        x1, y1 = points[i]
+        x2, y2 = points[(i + 1) % n]
+        area += x1 * y2 - x2 * y1
+    return area * 0.5
 
 
 def _bbox_contains(
     outer: tuple[float, float, float, float],
     inner: tuple[float, float, float, float],
 ) -> bool:
-    """Check if *outer* bounding box fully contains *inner* bounding box."""
     return (
         outer[0] <= inner[0]
         and outer[1] <= inner[1]
@@ -128,8 +135,7 @@ def _bbox_contains(
 
 
 def _find_background_color(elements: list[dict[str, Any]]) -> str | None:
-    """Scan existing output elements for a solid-fill rectangle/ellipse to use
-    as the background colour for hole-punching when fill-rule='evenodd' is active."""
+    """Scan existing output for the largest solid-filled rectangle."""
     best: tuple[float, str] | None = None
     for elem in elements:
         if elem.get("type") not in ("rectangle", "ellipse"):
@@ -161,68 +167,98 @@ def _convert_path(
     fill_rule = style.get("fill_rule", "nonzero")
     fill = style.get("fill", "transparent")
 
-    # When fill-rule="evenodd" with a non-transparent fill, inner subpaths
-    # are *holes* and should show the background.  Detect hole subpaths by
-    # bounding-box containment and punch them with the background colour.
+    # When fill-rule="evenodd", subpaths alternate the SVG fill between
+    # the path's colour and transparent (showing the background).  We
+    # approximate this by layering subpaths with alternating colours:
+    #
+    #   0 crossings → background  (green)  ← background rect
+    #   1 crossing  → path fill   (white)  ← CCW subpath
+    #   2 crossings → background  (green)  ← CW subpath (hole)
+    #   3 crossings → path fill   (white)  ← CW subpath inside another CW
+    #   … and so on.
+    #
+    # Subpaths are sorted largest-first and assigned a colour based on
+    # their nesting depth.  Elements are emitted bottom-to-top so that
+    # deeper layers render underneath shallower ones.
     if fill_rule == "evenodd" and fill != "transparent" and len(subpaths) > 1:
-        # Sort by area descending — largest subpaths are outer boundaries
-        indexed = list(enumerate(subpaths))
-        indexed.sort(key=lambda item: _subpath_area(item[1]), reverse=True)
-
-        hole_indices: set[int] = set()
-        outer_bounds = [_subpath_bounds(indexed[0][1])]
-
-        # Mark smaller subpaths that are contained within an outer boundary as holes
-        for idx, subpath in indexed[1:]:
-            sb = _subpath_bounds(subpath)
-            if any(_bbox_contains(ob, sb) for ob in outer_bounds):
-                hole_indices.add(idx)
-            else:
-                outer_bounds.append(sb)
-
         bg_color = None
-        if hole_indices and output_elements is not None:
+        if output_elements is not None:
             bg_color = _find_background_color(output_elements)
 
-        # Build outer-boundary elements first, then hole elements on top.
-        # This ordering ensures holes render *above* the filled shape and
-        # punch through to the background colour visually.
-        outer_elements: list[dict[str, Any]] = []
-        hole_elements: list[dict[str, Any]] = []
+        # Pair each subpath with its winding sign and bounding box
+        indexed: list[tuple[int, list[Point], float, tuple[float, float, float, float]]] = []
+        for idx, sp in enumerate(subpaths):
+            indexed.append((idx, sp, _signed_area(sp), _subpath_bounds(sp)))
 
-        for idx, subpath in enumerate(subpaths):
-            if idx in hole_indices:
-                # Hole subpath — fill with background colour to simulate a cutout.
-                # Always emit as "line" (not ellipse) so render order is correct:
-                # holes must render *after* the outer boundary to punch through.
-                hole_style = dict(style)
-                if bg_color:
-                    hole_style["fill"] = bg_color
-                else:
-                    hole_style["fill"] = "transparent"
+        # Sort by bounding-box area descending (largest first)
+        indexed.sort(
+            key=lambda item: (
+                (item[3][2] - item[3][0]) * (item[3][3] - item[3][1])
+            ),
+            reverse=True,
+        )
 
-                elem = create_base_element("line", group_id, ids)
-                apply_paint_style(elem, hole_style)
-                finalized = finalize_linear_element(elem, subpath)
-                if finalized is not None:
-                    hole_elements.append(finalized)
+        # Determine fill colour for each subpath by walking the nesting
+        # hierarchy.  The first (largest) subpath toggles the background
+        # to the path colour.  Each subsequent subpath that is contained
+        # within any earlier subpath toggles again.  When a subpath is
+        # nested inside *multiple* earlier subpaths we must use the
+        # *innermost* (smallest) container to compute the correct
+        # crossing depth.
+        fills: dict[int, str] = {}
+        for pos, (orig_idx, _sp, _area, sb) in enumerate(indexed):
+            if pos == 0:
+                fills[orig_idx] = fill
             else:
-                # Outer boundary subpath — normal fill.  Circle detection is
-                # still useful here to produce cleaner shapes for standalone
-                # circular subpaths.
-                if is_circle_like(subpath):
-                    outer_elements.append(
-                        _convert_circle_like_subpath(subpath, style, group_id, ids)
+                # Find the *innermost* (smallest-area) containing subpath
+                best_container: tuple[int, float] | None = None
+                for earlier_pos in range(pos):
+                    _, _, _, ob = indexed[earlier_pos]
+                    if _bbox_contains(ob, sb):
+                        ob_area = (ob[2] - ob[0]) * (ob[3] - ob[1])
+                        if best_container is None or ob_area < best_container[1]:
+                            best_container = (earlier_pos, ob_area)
+
+                if best_container is not None:
+                    earlier_idx = indexed[best_container[0]][0]
+                    fills[orig_idx] = (
+                        bg_color
+                        if fills[earlier_idx] == fill and bg_color
+                        else fill
                     )
-                    continue
+                else:
+                    fills[orig_idx] = fill
 
-                elem = create_base_element("line", group_id, ids)
-                apply_paint_style(elem, style)
-                finalized = finalize_linear_element(elem, subpath)
-                if finalized is not None:
-                    outer_elements.append(finalized)
+        # Emit every subpath as a "line" element (not ellipse) so that
+        # all share the same z-sort order and array position controls
+        # layering.  CCW/canvas subpaths first (bottom), holes next,
+        # restoration patches last (top).
+        bottom: list[dict[str, Any]] = []  # canvas / base shapes
+        middle: list[dict[str, Any]] = []  # holes
+        top: list[dict[str, Any]] = []     # restoration layers
 
-        return outer_elements + hole_elements
+        for orig_idx, sp, area_val, _sb in indexed:
+            colour = fills.get(orig_idx, fill)
+            sp_style = dict(style)
+            sp_style["fill"] = colour
+
+            elem = create_base_element("line", group_id, ids)
+            apply_paint_style(elem, sp_style)
+            finalized = finalize_linear_element(elem, sp)
+            if finalized is None:
+                continue
+
+            if area_val < 0:
+                # CCW = canvas → bottom layer
+                bottom.append(finalized)
+            elif colour == fill:
+                # CW, path-colour = restoration → top layer
+                top.append(finalized)
+            else:
+                # CW, bg-colour = hole → middle layer
+                middle.append(finalized)
+
+        return bottom + middle + top
 
     # Default behaviour (nonzero fill-rule or single subpath)
     elements: list[dict[str, Any]] = []
@@ -307,8 +343,6 @@ def _convert_element(
     converters = get_converters()
     if tag in converters:
         elem_style = inherit_style(node_style, element.attrib)
-        # Pass *output* to _convert_path so it can look up background colours
-        # for hole-punching when fill-rule="evenodd" is active.
         if tag == "path":
             new_elements = converters[tag](element.attrib, elem_style, group_id, ids, output)
         else:
