@@ -118,7 +118,8 @@ class TestSvgConversion:
 
         # First element is the invisible outer box, icon elements start at index 1
         assert types[0] == "rectangle"  # invisible box
-        assert types.count("ellipse") >= 1
+        # Circle-like hole subpaths are now emitted as "line" (not "ellipse")
+        # to maintain correct z-ordering for evenodd hole-punching.
         assert types.count("line") >= 1
         assert types[-1] == "text"
         assert elements[1]["backgroundColor"] == "#E7157B"

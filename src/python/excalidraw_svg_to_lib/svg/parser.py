@@ -36,6 +36,7 @@ def svg_to_elements(svg_content: str, ids: IdGenerator) -> tuple[list[dict[str, 
             "stroke": DEFAULT_STROKE,
             "stroke_width": 0.0,
             "opacity": 100.0,
+            "fill_rule": "nonzero",
         },
         root.attrib,
     )

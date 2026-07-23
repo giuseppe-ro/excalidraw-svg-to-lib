@@ -51,14 +51,18 @@ def apply_paint_style(element: dict[str, Any], style: dict[str, Any]) -> None:
     element["backgroundColor"] = (
         style["fill"] if style["fill"] != "transparent" else DEFAULT_FILL
     )
-    element["strokeColor"] = (
-        style["stroke"] if style["stroke"] != "transparent" else DEFAULT_STROKE
-    )
-    element["strokeWidth"] = (
-        style["stroke_width"]
-        if style["stroke"] != "transparent" and style["stroke_width"] > 0
-        else DEFAULT_STROKE_WIDTH
-    )
+    # When stroke is "transparent", keep it transparent (not DEFAULT_STROKE).
+    # SVG stroke="none" means no stroke at all.
+    if style["stroke"] == "transparent":
+        element["strokeColor"] = "transparent"
+        element["strokeWidth"] = 0
+    else:
+        element["strokeColor"] = style["stroke"]
+        element["strokeWidth"] = (
+            style["stroke_width"]
+            if style["stroke_width"] > 0
+            else DEFAULT_STROKE_WIDTH
+        )
     element["opacity"] = style.get("opacity", 100)
 
 
@@ -102,6 +106,9 @@ def create_invisible_box_element(
     min_x, min_y, max_x, max_y = icon_bounds
     return {
         **_base_element("rectangle", group_id, ids),
+        "strokeColor": "transparent",
+        "strokeWidth": 0,
+        "backgroundColor": "transparent",
         "frameId": None,
         "roundness": None,
         "x": min_x - ICON_PADDING,
@@ -222,7 +229,12 @@ def _scale_elements(elements: list[dict[str, Any]], scale: float) -> list[dict[s
         element["width"] *= scale
         element["height"] *= scale
         if "strokeWidth" in element:
-            element["strokeWidth"] = max(MIN_STROKE_WIDTH, element["strokeWidth"] * scale)
+            sw = element["strokeWidth"] * scale
+            # Preserve zero-width strokes (transparent / invisible stroke).
+            # Only clamp to MIN_STROKE_WIDTH when the stroke is actually visible.
+            if sw > 0:
+                sw = max(MIN_STROKE_WIDTH, sw)
+            element["strokeWidth"] = sw
         points = element.get("points")
         if points:
             element["points"] = [[p[0] * scale, p[1] * scale] for p in points]
