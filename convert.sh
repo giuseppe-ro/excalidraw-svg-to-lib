@@ -30,6 +30,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/common.sh
 source "$SCRIPT_DIR/scripts/common.sh"
 
+# Resolve relative paths to absolute before cd to project root
+abs_path() { "$PYTHON" -c "import os, sys; print(os.path.abspath(sys.argv[1]))" "$1"; }
+INPUT=$(abs_path "$INPUT")
+OUTPUT=$(abs_path "$OUTPUT")
+[ -n "$APPEND" ] && APPEND=$(abs_path "$APPEND")
+
 cd "$PROJECT_ROOT"
 
 # Install dependencies
