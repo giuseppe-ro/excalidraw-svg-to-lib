@@ -35,16 +35,18 @@ def convert_svg_to_library(
     options: ConvertOptions | None = None,
     ids: IdGenerator | None = None,
 ) -> dict[str, Any]:
-    """Convert raw SVG text into an elements list (no label added)."""
+    """Convert raw SVG text into Excalidraw elements.
+
+    Returns a dict with ``"elements"`` (sorted list of element dicts) and
+    ``"view_box"`` (the parsed SVG viewBox).
+    """
     resolved_options = options or ConvertOptions()
     id_generator = ids or IdGenerator()
     elements, view_box = svg_to_elements(svg_content, id_generator)
     elements = _apply_options(elements, resolved_options)
 
     return {
-        "type": "excalidrawlib",
-        "version": resolved_options.format_version,
-        "library": [sort_elements(elements)],
+        "elements": sort_elements(elements),
         "view_box": view_box,
     }
 
@@ -60,13 +62,15 @@ def convert_input_to_library(
     Returns ``icon_name`` derived from the filename stem for v2 naming.
     """
     path = Path(input_path)
+    if not path.is_file():
+        raise FileNotFoundError(f"File not found: {input_path}")
     if path.suffix.lower() != ".svg":
         raise ValueError(f"Unsupported file type '{path.suffix}'. Only .svg files are supported.")
 
     resolved_options = options or ConvertOptions()
     id_generator = ids or IdGenerator()
     result = convert_svg_to_library(path.read_text(encoding="utf-8"), resolved_options, id_generator)
-    elements = result["library"][0]
+    elements = result["elements"]
     icon_name = path.stem
 
     if resolved_options.add_label:
@@ -87,8 +91,6 @@ def convert_input_to_library(
         elements = sort_elements(elements)
 
     return {
-        "type": "excalidrawlib",
-        "version": resolved_options.format_version,
         "library": [elements],
         "icon_name": icon_name,
         "view_box": result["view_box"],

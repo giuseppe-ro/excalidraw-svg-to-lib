@@ -14,10 +14,11 @@ while [[ $# -gt 0 ]]; do
     -i) INPUT="$2"; shift 2 ;;
     -o) OUTPUT="$2"; shift 2 ;;
     -a) APPEND="$2"; shift 2 ;;
+    --help) EXTRA_ARGS+=("$1"); shift ;;           # pass help through to Python CLI
     --*=*) EXTRA_ARGS+=("$1"); shift ;;            # --target-size=72 (value inline)
     --no-*) EXTRA_ARGS+=("$1"); shift ;;           # --no-label, --no-scale, --no-normalize (boolean flags)
     --*) EXTRA_ARGS+=("$1" "$2"); shift 2 ;;      # --target-size 72 (value separate)
-    *)  echo "Usage: $0 [-i input_folder] [-o output_file] [-a append_library] [--extra-flags...]"; exit 1 ;;
+    *)  EXTRA_ARGS+=("$1"); shift ;;               # pass-through: positional paths, unknown flags, etc.
   esac
 done
 

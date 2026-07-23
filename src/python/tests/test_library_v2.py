@@ -12,10 +12,16 @@ from pathlib import Path
 import pytest
 
 from excalidraw_svg_to_lib.library import (
+    NamedLibraryItem,
     append_to_existing,
     make_library_file,
     make_v2_item,
 )
+
+
+def _ni(elements: list, name: str) -> NamedLibraryItem:
+    """Shorthand to build a NamedLibraryItem."""
+    return {"elements": elements, "name": name}
 
 
 class TestMakeV2Item:
@@ -54,7 +60,7 @@ class TestMakeLibraryFileV2:
     """``make_library_file`` with ``format_version=2`` produces v2 output."""
 
     def test_v2_has_library_items_key(self) -> None:
-        result = make_library_file(items=[([], "icon")], format_version=2)
+        result = make_library_file(items=[_ni([], "icon")], format_version=2)
 
         assert "libraryItems" in result
         assert result["version"] == 2
@@ -62,25 +68,25 @@ class TestMakeLibraryFileV2:
         assert len(result["libraryItems"]) == 1
 
     def test_v2_item_has_name(self) -> None:
-        result = make_library_file(items=[([], "MyIcon")], format_version=2)
+        result = make_library_file(items=[_ni([], "MyIcon")], format_version=2)
 
         item = result["libraryItems"][0]
         assert item["name"] == "MyIcon"
 
     def test_v2_has_source(self) -> None:
-        result = make_library_file(items=[([], "icon")], format_version=2)
+        result = make_library_file(items=[_ni([], "icon")], format_version=2)
 
         assert result["source"] == "https://excalidraw.com"
 
     def test_v2_omits_library_key(self) -> None:
-        result = make_library_file(items=[([], "icon")], format_version=2)
+        result = make_library_file(items=[_ni([], "icon")], format_version=2)
 
         assert "library" not in result
 
     def test_v2_with_multiple_items(self) -> None:
         items = [
-            ([{"type": "rectangle"}], "IconA"),
-            ([{"type": "ellipse"}], "IconB"),
+            _ni([{"type": "rectangle"}], "IconA"),
+            _ni([{"type": "ellipse"}], "IconB"),
         ]
         result = make_library_file(items=items, format_version=2)
 
@@ -90,17 +96,17 @@ class TestMakeLibraryFileV2:
 
     def test_v2_includes_files_when_provided(self) -> None:
         files = {"file-1": {"mimeType": "image/png"}}
-        result = make_library_file(items=[([], "icon")], files=files, format_version=2)
+        result = make_library_file(items=[_ni([], "icon")], files=files, format_version=2)
 
         assert result["files"] == files
 
     def test_v2_omits_files_key_when_none(self) -> None:
-        result = make_library_file(items=[([], "icon")], format_version=2)
+        result = make_library_file(items=[_ni([], "icon")], format_version=2)
 
         assert "files" not in result
 
     def test_v2_all_items_have_unique_ids(self) -> None:
-        items = [([], "A"), ([], "B"), ([], "C")]
+        items = [_ni([], "A"), _ni([], "B"), _ni([], "C")]
         result = make_library_file(items=items, format_version=2)
 
         ids = [item["id"] for item in result["libraryItems"]]
@@ -139,7 +145,7 @@ class TestAppendV2:
             '"libraryItems":[{"id":"id1","status":"published","name":"Existing",'
             '"elements":[],"created":1000000}]}'
         )
-        new_file = make_library_file(items=[([], "NewIcon")], format_version=2)
+        new_file = make_library_file(items=[_ni([], "NewIcon")], format_version=2)
         result = append_to_existing(new_file, existing)
 
         assert len(result["libraryItems"]) == 2
@@ -180,7 +186,7 @@ class TestAppendV2:
             '"files":{"old-id":{"mimeType":"image/png"}}}'
         )
         new_file = make_library_file(
-            items=[([], "icon")],
+            items=[_ni([], "icon")],
             files={"new-id": {"mimeType": "image/jpeg"}},
             format_version=2,
         )
@@ -195,8 +201,40 @@ class TestAppendV2:
             '{"type":"excalidrawlib","version":2,"source":"https://example.com",'
             '"libraryItems":[],"customKey":"value"}'
         )
-        new_file = make_library_file(items=[([], "icon")], format_version=2)
+        new_file = make_library_file(items=[_ni([], "icon")], format_version=2)
         result = append_to_existing(new_file, existing)
 
         assert result["source"] == "https://example.com"
         assert result["customKey"] == "value"
+
+    def test_cross_format_v2_append_to_v1(self, tmp_path: Path) -> None:
+        """Appending v2 items to a v1 library strips metadata to use 'library' key."""
+        existing = tmp_path / "existing.excalidrawlib"
+        existing.write_text(
+            '{"type":"excalidrawlib","version":1,"library":[[{"type":"rectangle"}]]}'
+        )
+        new_file = make_library_file(items=[_ni([{"type": "ellipse"}], "NewIcon")], format_version=2)
+        result = append_to_existing(new_file, existing)
+
+        assert "library" in result
+        assert "libraryItems" not in result
+        assert len(result["library"]) == 2
+        # The appended item should be the bare elements list (no v2 wrapper)
+        assert isinstance(result["library"][1], list)
+        assert result["library"][1][0]["type"] == "ellipse"
+
+    def test_cross_format_v1_append_to_v2(self, tmp_path: Path) -> None:
+        """Appending v1 items to a v2 library wraps them in v2 structure."""
+        existing = tmp_path / "existing.excalidrawlib"
+        existing.write_text(
+            '{"type":"excalidrawlib","version":2,"source":"https://excalidraw.com",'
+            '"libraryItems":[{"id":"id1","status":"published","name":"Existing",'
+            '"elements":[{"type":"rectangle"}],"created":1000000}]}'
+        )
+        new_file = make_library_file([[{"type": "ellipse"}]], format_version=1)
+        result = append_to_existing(new_file, existing)
+
+        assert "libraryItems" in result
+        assert "library" not in result
+        assert len(result["libraryItems"]) == 2
+        assert result["libraryItems"][1]["elements"][0]["type"] == "ellipse"

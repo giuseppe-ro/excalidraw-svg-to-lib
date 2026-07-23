@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 from typing import Any
 
 from excalidraw_svg_to_lib.constants import DEFAULT_FILL, DEFAULT_STROKE
@@ -8,6 +8,24 @@ from excalidraw_svg_to_lib.id_generator import IdGenerator
 from excalidraw_svg_to_lib.svg.converters import _convert_element
 from excalidraw_svg_to_lib.svg.transforms import IDENTITY
 from excalidraw_svg_to_lib.svg.utils import inherit_style, local_name, parse_length
+
+
+def _collect_defs(root: ET.Element) -> dict[str, ET.Element]:
+    """Walk the SVG tree and collect all elements with an ``id`` attribute.
+
+    These are used to resolve ``<use href="#id">`` references.
+    """
+    defs: dict[str, ET.Element] = {}
+
+    def _walk(element: ET.Element) -> None:
+        elem_id = element.attrib.get("id")
+        if elem_id:
+            defs[elem_id] = element
+        for child in element:
+            _walk(child)
+
+    _walk(root)
+    return defs
 
 
 def parse_view_box(svg_element: ET.Element) -> dict[str, float]:
@@ -23,7 +41,10 @@ def parse_view_box(svg_element: ET.Element) -> dict[str, float]:
 
 
 def svg_to_elements(svg_content: str, ids: IdGenerator) -> tuple[list[dict[str, Any]], dict[str, float]]:
-    root = ET.fromstring(svg_content)
+    try:
+        root = ET.fromstring(svg_content)
+    except ET.ParseError as exc:
+        raise ValueError(f"Invalid SVG: {exc}") from exc
     if local_name(root.tag) != "svg":
         raise ValueError("Invalid SVG: missing <svg> root element")
 
@@ -41,5 +62,6 @@ def svg_to_elements(svg_content: str, ids: IdGenerator) -> tuple[list[dict[str, 
         root.attrib,
     )
 
-    _convert_element(root, root_style, IDENTITY, group_id, ids, elements)
+    defs = _collect_defs(root)
+    _convert_element(root, root_style, IDENTITY, group_id, ids, elements, defs=defs)
     return elements, view_box

@@ -213,8 +213,10 @@ def _scale_elements(elements: list[dict[str, Any]], scale: float) -> list[dict[s
         if "strokeWidth" in element:
             sw = element["strokeWidth"] * scale
             # Preserve zero-width strokes (transparent / invisible stroke).
-            # Only clamp to MIN_STROKE_WIDTH when the stroke is actually visible.
-            if sw > 0:
+            # When scaling up, clamp to MIN_STROKE_WIDTH so strokes stay
+            # visible.  When scaling down, let the stroke shrink proportionally
+            # to avoid disproportionately thick strokes on tiny icons.
+            if sw > 0 and scale > 1:
                 sw = max(MIN_STROKE_WIDTH, sw)
             element["strokeWidth"] = sw
         points = element.get("points")

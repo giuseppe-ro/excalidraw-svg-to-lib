@@ -6,7 +6,7 @@ from pathlib import Path
 
 from excalidraw_svg_to_lib.id_generator import IdGenerator
 from excalidraw_svg_to_lib.io import collect_input_paths, resolve_output_path, write_library_file
-from excalidraw_svg_to_lib.library import append_to_existing, make_library_file
+from excalidraw_svg_to_lib.library import NamedLibraryItem, append_to_existing, make_library_file
 from excalidraw_svg_to_lib.options import ConvertOptions
 from excalidraw_svg_to_lib.runner import convert_input_to_library
 
@@ -76,9 +76,10 @@ def main(argv: list[str] | None = None) -> None:
         print(f"Error: {error}", file=sys.stderr)
         raise SystemExit(1) from error
 
-    # Print warnings about skipped files (ANSI yellow — universal across shells)
-    _YELLOW = "\033[33m"
-    _RESET = "\033[0m"
+    # Print warnings about skipped files (yellow when stderr is a terminal)
+    use_colour = sys.stderr.isatty()
+    _YELLOW = "\033[33m" if use_colour else ""
+    _RESET = "\033[0m" if use_colour else ""
     for warning in warnings:
         print(f"{_YELLOW}{warning}{_RESET}", file=sys.stderr)
 
@@ -107,7 +108,10 @@ def main(argv: list[str] | None = None) -> None:
             raise SystemExit(1) from error
 
     if options.format_version == 2:
-        named_items = list(zip(library_items, icon_names))
+        named_items: list[NamedLibraryItem] = [
+            {"elements": el, "name": name}
+            for el, name in zip(library_items, icon_names)
+        ]
         library_file = make_library_file(named_items, format_version=2, ids=id_generator)
     else:
         library_file = make_library_file(library_items)

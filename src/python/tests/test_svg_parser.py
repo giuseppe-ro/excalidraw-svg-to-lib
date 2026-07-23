@@ -56,6 +56,15 @@ class TestSvgToElements:
         assert elements[0]["y"] == 6.0
         assert view_box == {"x": 0.0, "y": 0.0, "width": 32.0, "height": 32.0}
 
+    def test_converts_rect_with_rx(self, ids: IdGenerator) -> None:
+        svg = '<svg viewBox="0 0 64 64"><rect x="0" y="0" width="40" height="40" rx="8" fill="#ff0000"/></svg>'
+        elements, _ = svg_to_elements(svg, ids)
+        assert len(elements) == 1
+        assert elements[0]["type"] == "rectangle"
+        assert "roundness" in elements[0]
+        # rx=8 on a 40x40 rect → max_radius=20, roundness=8/20=0.4
+        assert elements[0]["roundness"]["value"] == pytest.approx(0.4)
+
     def test_converts_circle(self, ids: IdGenerator) -> None:
         svg = '<svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="16" fill="#00ff00"/></svg>'
         elements, _ = svg_to_elements(svg, ids)
@@ -163,6 +172,10 @@ class TestSvgToElements:
         with pytest.raises(ValueError, match="missing <svg>"):
             svg_to_elements("<root></root>", ids)
 
+    def test_rejects_malformed_xml(self, ids: IdGenerator) -> None:
+        with pytest.raises(ValueError, match="Invalid SVG"):
+            svg_to_elements("<svg><unclosed>", ids)
+
     def test_handles_namespace_in_svg_root(self, ids: IdGenerator) -> None:
         svg = (
             '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">'
@@ -197,3 +210,38 @@ class TestSvgToElements:
         svg = '<svg viewBox="10 20 200 300"><rect x="0" y="0" width="10" height="10" fill="#ff0000"/></svg>'
         _, view_box = svg_to_elements(svg, ids)
         assert view_box == {"x": 10.0, "y": 20.0, "width": 200.0, "height": 300.0}
+
+    def test_converts_use_element(self, ids: IdGenerator) -> None:
+        svg = """<svg viewBox="0 0 64 64">
+            <defs>
+                <rect id="r1" x="0" y="0" width="20" height="20" fill="#ff0000"/>
+            </defs>
+            <use href="#r1" x="10" y="10"/>
+        </svg>"""
+        elements, _ = svg_to_elements(svg, ids)
+        assert len(elements) == 1
+        assert elements[0]["type"] == "rectangle"
+        assert elements[0]["x"] == 10.0
+        assert elements[0]["y"] == 10.0
+        assert elements[0]["width"] == 20.0
+        assert elements[0]["height"] == 20.0
+        assert elements[0]["backgroundColor"] == "#ff0000"
+
+    def test_use_element_unknown_id_is_noop(self, ids: IdGenerator) -> None:
+        svg = '<svg viewBox="0 0 64 64"><use href="#missing"/></svg>'
+        elements, _ = svg_to_elements(svg, ids)
+        assert len(elements) == 0
+
+    def test_converts_text_element(self, ids: IdGenerator) -> None:
+        svg = '<svg viewBox="0 0 100 100"><text x="10" y="30" font-size="16" fill="#333">Hello SVG</text></svg>'
+        elements, _ = svg_to_elements(svg, ids)
+        assert len(elements) == 1
+        assert elements[0]["type"] == "text"
+        assert elements[0]["text"] == "Hello SVG"
+        assert elements[0]["fontSize"] == 16.0
+        assert elements[0]["strokeColor"] == "#333"
+
+    def test_text_element_skips_empty_content(self, ids: IdGenerator) -> None:
+        svg = '<svg viewBox="0 0 100 100"><text x="10" y="30">   </text></svg>'
+        elements, _ = svg_to_elements(svg, ids)
+        assert len(elements) == 0
