@@ -6,7 +6,9 @@ Convert SVG icons into Excalidraw `.excalidrawlib` files.
 
 ```
 src/python/      Python converter (package + tests)
-svg/             Source icons
+svg/             Source SVG icons
+scripts/         Shell helpers (setup, lint, test)
+.github/         CI/CD workflows
 ```
 
 ## Quick start
@@ -98,6 +100,7 @@ Excalidraw library panel:
 {
   "type": "excalidrawlib",
   "version": 2,
+  "source": "https://excalidraw.com",
   "libraryItems": [
     {
       "id": "...",
