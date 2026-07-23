@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.conftest import FIXTURES_DIR, SVG_DIR
+from tests.conftest import FIXTURES_DIR
 
 from excalidraw_svg_to_lib.constants import (
     DEFAULT_LABEL_GAP,
@@ -23,7 +23,7 @@ from excalidraw_svg_to_lib.elements import element_bounds
 
 def _require_svg(name: str) -> Path:
     """Return path to an SVG fixture, skipping the test if missing."""
-    path = SVG_DIR / name
+    path = FIXTURES_DIR / name
     if not path.exists():
         pytest.skip(f"{name} fixture not available")
     return path
