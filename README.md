@@ -52,13 +52,6 @@ python -m excalidraw_svg_to_lib icon.svg logo.png data.json -o icons.excalidrawl
 # Wrote icons.excalidrawlib (1 library item(s))
 ```
 
-Examples:
-
-```bash
-# Python (from src/python)
-python -m excalidraw_svg_to_lib ../../svg/ -o ../../aws-icons.excalidrawlib
-```
-
 ## Appending to an existing library
 
 Use `--append` to add new icons to an existing `.excalidrawlib` without replacing it:
@@ -83,28 +76,14 @@ Works with both v1 and v2 library formats, including cross-format merges.
 | `--no-label` | add labels | Skip filename labels below icons |
 | `--no-scale` | scale to target | Keep original icon dimensions |
 | `--target-size` | `64` | Scale icons to this max dimension |
-| `--stroke-width` | `0.2` | Uniform stroke width for all elements (overrides SVG values) |
 | `--v1` | v2 | Use legacy v1 library format |
-
-### Custom stroke width
-
-Use `--stroke-width` to set a uniform stroke width for all elements, overriding the
-original SVG stroke-width values:
-
-```bash
-# Thinner strokes for cleaner icons
-python -m excalidraw_svg_to_lib svg/ -o icons.excalidrawlib --stroke-width 0.2
-
-# Thicker strokes
-python -m excalidraw_svg_to_lib svg/ -o icons.excalidrawlib --stroke-width 2
-```
 
 ### Shell script
 
 The `convert.sh` script supports passing extra flags through:
 
 ```bash
-./convert.sh -i svg/ -o icons.excalidrawlib --stroke-width 1 --no-scale
+./convert.sh -i svg/ -o icons.excalidrawlib --no-scale --no-label
 ```
 
 ## Output formats
