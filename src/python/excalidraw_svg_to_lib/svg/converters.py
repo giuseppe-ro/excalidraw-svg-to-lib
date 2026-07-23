@@ -4,7 +4,6 @@ import time
 from collections.abc import Callable
 from xml.etree.ElementTree import Element
 
-import defusedxml.ElementTree as ET
 from typing import Any
 
 from excalidraw_svg_to_lib.elements import (
