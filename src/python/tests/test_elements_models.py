@@ -27,7 +27,7 @@ class TestCreateBaseElement:
         assert elem["isDeleted"] is False
         assert elem["groupIds"] == ["group-1"]
         assert elem["fillStyle"] == "solid"
-        assert elem["strokeWidth"] == 0.5
+        assert elem["strokeWidth"] == 0.2
         assert elem["strokeStyle"] == "solid"
         assert elem["roughness"] == 0
         assert elem["opacity"] == 100
@@ -81,7 +81,7 @@ class TestApplyPaintStyle:
     def test_defaults_stroke_width_to_2_when_stroke_transparent(self, ids: IdGenerator) -> None:
         elem = create_base_element("rectangle", "g1", ids)
         apply_paint_style(elem, {"fill": "#fff", "stroke": "transparent", "stroke_width": 0})
-        assert elem["strokeWidth"] == 0.5
+        assert elem["strokeWidth"] == 0.2
 
     def test_sets_opacity(self, ids: IdGenerator) -> None:
         elem = create_base_element("rectangle", "g1", ids)
@@ -152,7 +152,7 @@ class TestCreateInvisibleBoxElement:
 
     def test_has_minimal_stroke(self, ids: IdGenerator) -> None:
         box = create_invisible_box_element((0, 0, 64, 64), ids, "group-1")
-        assert box["strokeWidth"] == 0.5  # DEFAULT_STROKE_WIDTH
+        assert box["strokeWidth"] == 0.2  # DEFAULT_STROKE_WIDTH
         assert box["backgroundColor"] == "transparent"
 
     def test_sets_group_ids(self, ids: IdGenerator) -> None:
@@ -203,7 +203,7 @@ class TestCreateLabelElement:
 
     def test_sets_font_properties(self, ids: IdGenerator) -> None:
         label = create_label_element("test", -ICON_PADDING, 72, 66, ids, "group-1")
-        assert label["fontSize"] == 8
+        assert label["fontSize"] == 10
         assert label["fontFamily"] == 2
 
     def test_text_box_width_matches_outer_box_regardless_of_label_length(self, ids: IdGenerator) -> None:

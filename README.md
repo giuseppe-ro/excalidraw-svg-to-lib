@@ -83,7 +83,7 @@ Works with both v1 and v2 library formats, including cross-format merges.
 | `--no-label` | add labels | Skip filename labels below icons |
 | `--no-scale` | scale to target | Keep original icon dimensions |
 | `--target-size` | `64` | Scale icons to this max dimension |
-| `--stroke-width` | `0.5` | Uniform stroke width for all elements (overrides SVG values) |
+| `--stroke-width` | `0.2` | Uniform stroke width for all elements (overrides SVG values) |
 | `--v1` | v2 | Use legacy v1 library format |
 
 ### Custom stroke width
@@ -93,7 +93,7 @@ original SVG stroke-width values:
 
 ```bash
 # Thinner strokes for cleaner icons
-python -m excalidraw_svg_to_lib svg/ -o icons.excalidrawlib --stroke-width 0.5
+python -m excalidraw_svg_to_lib svg/ -o icons.excalidrawlib --stroke-width 0.2
 
 # Thicker strokes
 python -m excalidraw_svg_to_lib svg/ -o icons.excalidrawlib --stroke-width 2

@@ -167,7 +167,7 @@ class TestSvgConversion:
 
         # First element is the invisible outer box, icon elements start at index 1
         assert types[0] == "rectangle"  # invisible box
-        assert elements[0]["strokeWidth"] == 0.5  # invisible box matches DEFAULT_STROKE_WIDTH
+        assert elements[0]["strokeWidth"] == 0.2  # invisible box matches DEFAULT_STROKE_WIDTH
         assert elements[0]["backgroundColor"] == "transparent"
 
         assert types.count("ellipse") >= 1

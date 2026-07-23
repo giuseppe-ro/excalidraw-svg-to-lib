@@ -84,8 +84,8 @@ class TestInheritStyle:
         assert result["stroke_width"] == 2.5
 
     def test_inherits_opacity_and_scales_to_percent(self) -> None:
-        result = inherit_style({}, {"opacity": "0.5"})
-        assert result["opacity"] == 50.0
+        result = inherit_style({}, {"opacity": "0.2"})
+        assert result["opacity"] == 20.0
 
     def test_normalizes_fill_to_transparent(self) -> None:
         result = inherit_style({}, {"fill": "none"})

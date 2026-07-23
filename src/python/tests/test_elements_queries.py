@@ -89,5 +89,5 @@ class TestIsCircleLike:
 
     def test_rejects_highly_elliptical(self) -> None:
         # Very stretched — ratio outside 0.7-1.3
-        points = [(0, 0), (0.5, 0), (1, 0.5), (1, 5), (0.5, 5), (0, 0.5), (0, 0)]
+        points = [(0, 0), (0.2, 0), (1, 0.2), (1, 5), (0.2, 5), (0, 0.2), (0, 0)]
         assert is_circle_like(points) is False
