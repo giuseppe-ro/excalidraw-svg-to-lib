@@ -26,9 +26,9 @@ if [ -z "$OUTPUT" ]; then
   OUTPUT="${APPEND:-output.excalidrawlib}"
 fi
 
-# Detect Python and setup venv (from scripts/common.sh)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/common.sh
-source "$(dirname "$0")/scripts/common.sh"
+source "$SCRIPT_DIR/scripts/common.sh"
 
 cd "$PROJECT_ROOT"
 
