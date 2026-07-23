@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from excalidraw_svg_to_lib.elements.models import (
+from excalidraw_svg_to_lib.elements import (
     Point,
     apply_paint_style,
     create_base_element,
     finalize_linear_element,
+    is_circle_like,
 )
-from excalidraw_svg_to_lib.elements.queries import is_circle_like
 from excalidraw_svg_to_lib.id_generator import IdGenerator
 from excalidraw_svg_to_lib.svg.path_sampling import path_commands_to_points
 from excalidraw_svg_to_lib.svg.transforms import (

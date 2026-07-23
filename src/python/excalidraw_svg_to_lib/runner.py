@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from excalidraw_svg_to_lib.constants import ICON_PADDING, DEFAULT_LABEL_GAP
 from excalidraw_svg_to_lib.elements import (
@@ -15,61 +15,22 @@ from excalidraw_svg_to_lib.elements import (
     sort_elements,
 )
 from excalidraw_svg_to_lib.id_generator import IdGenerator
-from excalidraw_svg_to_lib.io import collect_input_paths, write_library_file
-from excalidraw_svg_to_lib.library import make_library_file
 from excalidraw_svg_to_lib.options import ConvertOptions
 from excalidraw_svg_to_lib.svg import svg_to_elements
 
 
-# ---------------------------------------------------------------------------
-# File-converter registry (OCP — new formats register without modifying this)
-# ---------------------------------------------------------------------------
-
-FileConverter = Callable[[Path, ConvertOptions, IdGenerator], dict[str, Any]]
-
-_FILE_CONVERTERS: dict[str, FileConverter] = {}
-
-
-def register_converter(extension: str, converter: FileConverter) -> None:
-    """Register a converter for a file extension (e.g. ``'.svg'``)."""
-    _FILE_CONVERTERS[extension] = converter
-
-
-def _lookup_converter(extension: str) -> FileConverter | None:
-    return _FILE_CONVERTERS.get(extension)
-
-
-# ---------------------------------------------------------------------------
-# Built-in converters
-# ---------------------------------------------------------------------------
-
-
-def _convert_svg(path: Path, options: ConvertOptions, ids: IdGenerator) -> dict[str, Any]:
-    elements, view_box = svg_to_elements(path.read_text(encoding="utf-8"), ids)
-
+def _apply_options(
+    elements: list[dict[str, Any]],
+    options: ConvertOptions,
+) -> list[dict[str, Any]]:
+    """Apply normalize, scale, and stroke-width options to elements."""
     if options.normalize:
         elements = normalize_elements(elements)
-
     if options.scale_to_target:
         elements = fit_elements_to_size(elements, options.target_icon_size)
-
     if options.uniform_stroke_width is not None:
         elements = normalize_stroke_width(elements, options.uniform_stroke_width)
-
-    return {
-        "library": [sort_elements(elements)],
-        "files": {},
-        "view_box": view_box,
-    }
-
-
-# Register built-in converter at import time
-register_converter(".svg", _convert_svg)
-
-
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
+    return elements
 
 
 def convert_svg_to_library(
@@ -81,21 +42,12 @@ def convert_svg_to_library(
     resolved_options = options or ConvertOptions()
     id_generator = ids or IdGenerator()
     elements, view_box = svg_to_elements(svg_content, id_generator)
-
-    if resolved_options.normalize:
-        elements = normalize_elements(elements)
-
-    if resolved_options.scale_to_target:
-        elements = fit_elements_to_size(elements, resolved_options.target_icon_size)
-
-    if resolved_options.uniform_stroke_width is not None:
-        elements = normalize_stroke_width(elements, resolved_options.uniform_stroke_width)
+    elements = _apply_options(elements, resolved_options)
 
     return {
         "type": "excalidrawlib",
         "version": resolved_options.format_version,
         "library": [sort_elements(elements)],
-        "files": {},
         "view_box": view_box,
     }
 
@@ -111,105 +63,38 @@ def convert_input_to_library(
     Returns ``icon_name`` derived from the filename stem for v2 naming.
     """
     path = Path(input_path)
-    extension = path.suffix.lower()
+    if path.suffix.lower() != ".svg":
+        raise ValueError(f"Unsupported file type '{path.suffix}'. Only .svg files are supported.")
+
     resolved_options = options or ConvertOptions()
     id_generator = ids or IdGenerator()
 
-    converter = _lookup_converter(extension)
-    if converter is None:
-        raise ValueError(
-            f"Unsupported file type {extension or '(no extension)'}. "
-            "Only .svg files are supported."
-        )
-
-    result = converter(path, resolved_options, id_generator)
+    elements, view_box = svg_to_elements(path.read_text(encoding="utf-8"), id_generator)
+    elements = _apply_options(elements, resolved_options)
 
     icon_name = path.stem
 
     if resolved_options.add_label:
-        elements = result["library"][0]
         bounds = element_bounds(elements)
         group_id = icon_group_id(elements)
-
         min_x, min_y, max_x, max_y = bounds
 
-        # Invisible outer box (inserted first so it sorts behind the icon)
         invisible_box = create_invisible_box_element(bounds, id_generator, group_id)
         outer_box_x = min_x - ICON_PADDING
         outer_box_width = (max_x - min_x) + 2 * ICON_PADDING
         label_y = max_y + ICON_PADDING + DEFAULT_LABEL_GAP
 
-        # Label matches outer box width, centered
         label = create_label_element(
             icon_name, outer_box_x, outer_box_width, label_y, id_generator, group_id
         )
 
         elements.insert(0, invisible_box)
         elements.append(label)
-        result["library"][0] = sort_elements(elements)
 
     return {
         "type": "excalidrawlib",
         "version": resolved_options.format_version,
-        "library": result["library"],
-        "libraryItems": _build_v2_items(result["library"], [icon_name], resolved_options.format_version),
-        "files": result.get("files", {}),
+        "library": [sort_elements(elements)],
         "icon_name": icon_name,
+        "view_box": view_box,
     }
-
-
-def _build_v2_items(
-    element_lists: list[list[dict[str, Any]]],
-    names: list[str],
-    format_version: int,
-) -> list[dict[str, Any]]:
-    """Build v2 libraryItems from element lists and names."""
-    from excalidraw_svg_to_lib.library import make_v2_item
-
-    if format_version != 2:
-        return []
-
-    items = []
-    for elements, name in zip(element_lists, names):
-        items.append(make_v2_item(elements, name))
-    return items
-
-
-def build_library_file(
-    input_paths: list[str | Path],
-    options: ConvertOptions | None = None,
-    append_path: str | Path | None = None,
-    output_path: str | Path | None = None,
-) -> dict[str, Any]:
-    resolved_inputs = collect_input_paths(input_paths)
-    if not resolved_inputs:
-        raise ValueError("No supported icon files to convert.")
-
-    library_items: list[list[dict[str, Any]]] = []
-    icon_names: list[str] = []
-    files: dict[str, Any] = {}
-    id_generator = IdGenerator()
-
-    for input_path in resolved_inputs:
-        converted = convert_input_to_library(input_path, options, ids=id_generator)
-        library_items.append(converted["library"][0])
-        icon_names.append(converted["icon_name"])
-        files.update(converted.get("files", {}))
-
-    resolved_options = options or ConvertOptions()
-
-    if resolved_options.format_version == 2:
-        named_items = list(zip(library_items, icon_names))
-        library_file = make_library_file(named_items, files or None, format_version=2)
-    else:
-        library_file = make_library_file(library_items, files or None, format_version=1)
-
-    if append_path is not None:
-        from excalidraw_svg_to_lib.library import append_to_existing
-
-        library_file = append_to_existing(library_file, append_path)
-
-    if output_path is not None:
-        write_library_file(library_file, output_path)
-
-    return library_file
