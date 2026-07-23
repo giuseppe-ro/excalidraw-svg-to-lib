@@ -177,7 +177,7 @@ def element_bounds(elements: list[dict[str, Any]]) -> tuple[float, float, float,
 
 
 def icon_group_id(elements: list[dict[str, Any]]) -> str:
-    group_ids = elements[0].get("groupIds") or []
+    group_ids: list[str] = elements[0].get("groupIds") or []
     if not group_ids:
         raise ValueError("Icon elements must belong to a group")
     return group_ids[0]

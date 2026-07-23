@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
+from xml.etree.ElementTree import Element
 
 import defusedxml.ElementTree as ET
 from typing import Any
@@ -373,7 +374,7 @@ def _convert_text(
     ids: IdGenerator,
     element_text: str = "",
     *,
-    tspans: list[ET.Element] | None = None,
+    tspans: list[Element] | None = None,
 ) -> list[dict[str, Any]]:
     """Convert an SVG ``<text>`` element to an Excalidraw text element.
 
@@ -393,6 +394,7 @@ def _convert_text(
         ))
 
     if has_tspans:
+        assert tspans is not None
         for ts in tspans:
             ts_text = (ts.text or "").strip()
             if not ts_text:
@@ -467,7 +469,7 @@ def _convert_use(
     style: dict[str, Any],
     group_id: str,
     ids: IdGenerator,
-    defs: dict[str, ET.Element],
+    defs: dict[str, Element],
     *,
     warnings: list[str] | None = None,
 ) -> list[dict[str, Any]]:
@@ -498,14 +500,14 @@ def _convert_use(
 
 
 def _convert_element(
-    element: ET.Element,
+    element: Element,
     style: dict[str, Any],
     transform: Transform,
     group_id: str,
     ids: IdGenerator,
     output: list[dict[str, Any]],
     *,
-    defs: dict[str, ET.Element] | None = None,
+    defs: dict[str, Element] | None = None,
     warnings: list[str] | None = None,
 ) -> None:
     """Recursively convert an SVG element and its children.

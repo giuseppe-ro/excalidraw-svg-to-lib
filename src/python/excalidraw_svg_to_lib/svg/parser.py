@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from xml.etree.ElementTree import Element
+
 import defusedxml.ElementTree as ET
 from typing import Any
 
@@ -10,15 +12,15 @@ from excalidraw_svg_to_lib.svg.transforms import IDENTITY
 from excalidraw_svg_to_lib.svg.utils import inherit_style, local_name, parse_length
 
 
-def _collect_id_map(root: ET.Element) -> dict[str, ET.Element]:
+def _collect_id_map(root: Element) -> dict[str, Element]:
     """Walk the SVG tree and collect all elements with an ``id`` attribute
     into a lookup map (not limited to ``<defs>`` children).
 
     Used to resolve ``<use href="#id">`` references anywhere in the tree.
     """
-    id_map: dict[str, ET.Element] = {}
+    id_map: dict[str, Element] = {}
 
-    def _walk(element: ET.Element) -> None:
+    def _walk(element: Element) -> None:
         elem_id = element.attrib.get("id")
         if elem_id:
             id_map[elem_id] = element
@@ -29,7 +31,7 @@ def _collect_id_map(root: ET.Element) -> dict[str, ET.Element]:
     return id_map
 
 
-def parse_view_box(svg_element: ET.Element) -> dict[str, float]:
+def parse_view_box(svg_element: Element) -> dict[str, float]:
     view_box = svg_element.get("viewBox")
     if view_box:
         parts = [float(part) for part in view_box.replace(",", " ").split()]

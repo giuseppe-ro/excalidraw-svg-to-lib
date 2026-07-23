@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 
 from excalidraw_svg_to_lib import __version__
@@ -127,7 +128,7 @@ def main(argv: list[str] | None = None) -> None:
         print(f"{_YELLOW}{warning}{_RESET}", file=sys.stderr)
 
     if options.format_version == 2:
-        named_items: list[NamedLibraryItem] = [
+        named_items: Sequence[NamedLibraryItem] = [
             {"elements": el, "name": name}
             for el, name in zip(library_items, icon_names)
         ]

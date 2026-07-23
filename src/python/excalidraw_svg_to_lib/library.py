@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, TypedDict
 
@@ -40,7 +41,7 @@ def make_v2_item(
 
 
 def make_library_file(
-    items: list[LibraryItem],
+    items: Sequence[LibraryItem],
     files: dict[str, Any] | None = None,
     *,
     format_version: int = 1,
@@ -53,7 +54,7 @@ def make_library_file(
 
 
 def _make_v1_file(
-    items: list[LibraryItem],
+    items: Sequence[LibraryItem],
     files: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     def _unwrap(item: LibraryItem) -> list[dict[str, Any]]:
@@ -72,7 +73,7 @@ def _make_v1_file(
 
 
 def _make_v2_file(
-    items: list[LibraryItem],
+    items: Sequence[LibraryItem],
     files: dict[str, Any] | None = None,
     ids: IdGenerator | None = None,
 ) -> dict[str, Any]:
@@ -102,7 +103,7 @@ def _make_v2_file(
 
 def _get_library_items(
     data: dict[str, Any],
-) -> tuple[str, list]:
+) -> tuple[str, list[Any]]:
     """Return ``(key, items)`` for whichever library format is present."""
     if "libraryItems" in data and isinstance(data["libraryItems"], list):
         return "libraryItems", data["libraryItems"]
