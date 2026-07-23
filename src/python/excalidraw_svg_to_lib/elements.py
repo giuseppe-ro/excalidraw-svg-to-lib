@@ -140,7 +140,7 @@ def create_label_element(
         "textAlign": "center",
         "verticalAlign": "top",
         "containerId": None,
-        "autoResize": False,
+        "autoResize": True,
         "lineHeight": line_height,
         "x": outer_box_x,
         "y": label_y,
