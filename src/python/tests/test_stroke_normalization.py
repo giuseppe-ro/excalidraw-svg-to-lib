@@ -8,7 +8,7 @@ import pytest
 
 from tests.conftest import FIXTURES_DIR
 
-from excalidraw_svg_to_lib.elements.transformations import normalize_stroke_width
+from excalidraw_svg_to_lib.elements import normalize_stroke_width
 from excalidraw_svg_to_lib.options import ConvertOptions
 from excalidraw_svg_to_lib.runner import convert_svg_to_library
 from excalidraw_svg_to_lib.id_generator import IdGenerator

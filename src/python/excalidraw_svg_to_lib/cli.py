@@ -101,7 +101,6 @@ def main(argv: list[str] | None = None) -> None:
 
     library_items = []
     icon_names = []
-    files = {}
     id_generator = IdGenerator()
 
     for input_path in resolved_inputs:
@@ -109,7 +108,6 @@ def main(argv: list[str] | None = None) -> None:
             converted = convert_input_to_library(input_path, options, ids=id_generator)
             library_items.append(converted["library"][0])
             icon_names.append(converted["icon_name"])
-            files.update(converted.get("files", {}))
             print(
                 f"Converted {input_path.name} -> {len(converted['library'][0])} element(s)",
                 file=sys.stderr,
@@ -120,9 +118,9 @@ def main(argv: list[str] | None = None) -> None:
 
     if options.format_version == 2:
         named_items = list(zip(library_items, icon_names))
-        library_file = make_library_file(named_items, files or None, format_version=2)
+        library_file = make_library_file(named_items, format_version=2, ids=id_generator)
     else:
-        library_file = make_library_file(library_items, files or None, format_version=1)
+        library_file = make_library_file(library_items)
 
     append_path = Path(args.append) if args.append else None
     if append_path is not None:

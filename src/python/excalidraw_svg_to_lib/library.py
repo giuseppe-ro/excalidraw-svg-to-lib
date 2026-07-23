@@ -1,33 +1,22 @@
 from __future__ import annotations
 
-import random
-import string
 import time
 from pathlib import Path
 from typing import Any
 
+from excalidraw_svg_to_lib.id_generator import IdGenerator
 from excalidraw_svg_to_lib.io import read_json
 
 
-def _random_id(length: int = 21) -> str:
-    """Generate a random ID string for library items."""
-    alphabet = string.ascii_letters + string.digits + "_-"
-    return "".join(random.choice(alphabet) for _ in range(length))
-
-
-# ---------------------------------------------------------------------------
-# V2 item builder
-# ---------------------------------------------------------------------------
-
-
-def make_v2_item(elements: list[dict[str, Any]], name: str) -> dict[str, Any]:
-    """Create a single v2 library item dict.
-
-    Each item contains the searchable ``name`` field that Excalidraw uses
-    for its library search UI.
-    """
+def make_v2_item(
+    elements: list[dict[str, Any]],
+    name: str,
+    ids: IdGenerator | None = None,
+) -> dict[str, Any]:
+    """Create a single v2 library item dict."""
+    gen = ids or IdGenerator()
     return {
-        "id": _random_id(),
+        "id": gen.random_id(),
         "status": "published",
         "name": name,
         "elements": elements,
@@ -45,22 +34,11 @@ def make_library_file(
     files: dict[str, Any] | None = None,
     *,
     format_version: int = 1,
+    ids: IdGenerator | None = None,
 ) -> dict[str, Any]:
-    """Build an Excalidraw library file payload.
-
-    Parameters
-    ----------
-    items:
-        For v1: a list of element lists ``[[elem, ...], ...]``.
-        For v2: a list of ``(elements, name)`` tuples.
-    files:
-        Optional embedded file data (for image imports).
-    format_version:
-        ``1`` for the legacy ``library`` key, ``2`` for the newer
-        ``libraryItems`` format with searchable ``name`` per item.
-    """
+    """Build an Excalidraw library file payload."""
     if format_version == 2:
-        return _make_v2_file(items, files)
+        return _make_v2_file(items, files, ids)
     return _make_v1_file(items, files)
 
 
@@ -81,6 +59,7 @@ def _make_v1_file(
 def _make_v2_file(
     items: list[list[dict[str, Any]]] | list[tuple[list[dict[str, Any]], str]],
     files: dict[str, Any] | None = None,
+    ids: IdGenerator | None = None,
 ) -> dict[str, Any]:
     library_items: list[dict[str, Any]] = []
     for item in items:
@@ -88,7 +67,7 @@ def _make_v2_file(
             elements, name = item
         else:
             elements, name = item, ""
-        library_items.append(make_v2_item(elements, name))
+        library_items.append(make_v2_item(elements, name, ids))
 
     library_file: dict[str, Any] = {
         "type": "excalidrawlib",

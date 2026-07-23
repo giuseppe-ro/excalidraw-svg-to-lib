@@ -12,8 +12,8 @@ from excalidraw_svg_to_lib.constants import (
     DEFAULT_TARGET_ICON_SIZE,
     ICON_PADDING,
 )
+from excalidraw_svg_to_lib.library import make_library_file, append_to_existing
 from excalidraw_svg_to_lib.runner import (
-    build_library_file,
     convert_input_to_library,
     convert_svg_to_library,
 )
@@ -118,7 +118,8 @@ class TestSvgConversion:
 
         # First element is the invisible outer box, icon elements start at index 1
         assert types[0] == "rectangle"  # invisible box
-        assert types.count("ellipse") >= 1
+        # Circle-like hole subpaths are now emitted as "line" (not "ellipse")
+        # to maintain correct z-ordering for evenodd hole-punching.
         assert types.count("line") >= 1
         assert types[-1] == "text"
         assert elements[1]["backgroundColor"] == "#E7157B"
@@ -212,7 +213,13 @@ class TestLibraryBuilder:
     ) -> None:
         svg_path_a = fixtures_dir / "simple_rect.svg"
         svg_path_b = fixtures_dir / "nested_icon.svg"
-        library = build_library_file([svg_path_a, svg_path_b], fixed_options)
+
+        library_items = []
+        for path in [svg_path_a, svg_path_b]:
+            converted = convert_input_to_library(path, fixed_options)
+            library_items.append(converted["library"][0])
+
+        library = make_library_file(library_items, format_version=1)
 
         assert library["type"] == "excalidrawlib"
         assert len(library["library"]) == 2
@@ -228,10 +235,8 @@ class TestLibraryBuilder:
             encoding="utf-8",
         )
 
-        library = build_library_file(
-            [fixtures_dir / "simple_rect.svg"],
-            fixed_options,
-            append_path=existing_path,
-        )
+        converted = convert_input_to_library(fixtures_dir / "simple_rect.svg", fixed_options)
+        library = make_library_file([converted["library"][0]], format_version=1)
+        library = append_to_existing(library, existing_path)
 
         assert len(library["library"]) == 2

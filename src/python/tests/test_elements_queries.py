@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from excalidraw_svg_to_lib.elements.queries import (
+from excalidraw_svg_to_lib.elements import (
     element_bounds,
     icon_group_id,
     is_circle_like,

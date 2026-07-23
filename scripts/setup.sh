@@ -1,16 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# shellcheck source=common.sh
-source "$(dirname "$0")/common.sh"
+# --- Install project dependencies ---
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/common.sh
+source "$SCRIPT_DIR/common.sh"
 
-cd "$PROJECT_ROOT/src/python"
-
-echo "Upgrading pip..."
-"$PYTHON" -m pip install --upgrade pip
-
-echo "Installing dependencies..."
-pip install -e ".[dev]"
-pip install flake8
-
-echo "Done — dependencies installed"
+cd "$PROJECT_ROOT"
+pip install -e "./src/python[dev]" --quiet

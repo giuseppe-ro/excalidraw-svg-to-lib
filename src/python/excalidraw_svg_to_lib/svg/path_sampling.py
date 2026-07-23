@@ -3,7 +3,7 @@ from __future__ import annotations
 from svg.path import Arc, Close, CubicBezier, Line, Move, Path, QuadraticBezier, parse_path
 
 from excalidraw_svg_to_lib.constants import CURVE_SAMPLES
-from excalidraw_svg_to_lib.elements.models import Point
+from excalidraw_svg_to_lib.elements import Point
 
 
 def _complex_to_point(value: complex) -> Point:

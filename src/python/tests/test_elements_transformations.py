@@ -2,10 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from excalidraw_svg_to_lib.elements.transformations import (
+from excalidraw_svg_to_lib.elements import (
     fit_elements_to_size,
     normalize_elements,
-    scale_elements,
     sort_elements,
 )
 
@@ -90,37 +89,6 @@ class TestNormalizeElements:
     def test_modifies_in_place(self) -> None:
         elements = [{"x": 5, "y": 5}]
         result = normalize_elements(elements)
-        assert result is elements
-
-
-class TestScaleElements:
-    def test_scales_position_and_size(self) -> None:
-        elements = [{"x": 10, "y": 10, "width": 20, "height": 10, "strokeWidth": 2}]
-        scale_elements(elements, 2)
-        assert elements[0]["x"] == 20
-        assert elements[0]["y"] == 20
-        assert elements[0]["width"] == 40
-        assert elements[0]["height"] == 20
-
-    def test_scales_stroke_width_with_minimum(self) -> None:
-        elements = [{"x": 0, "y": 0, "width": 10, "height": 10, "strokeWidth": 2}]
-        scale_elements(elements, 0.1)
-        assert elements[0]["strokeWidth"] == 0.2  # min stroke width is 0.2
-
-    def test_scales_points(self) -> None:
-        elements = [{"x": 0, "y": 0, "width": 10, "height": 10, "points": [[0, 0], [10, 10]]}]
-        scale_elements(elements, 3)
-        assert elements[0]["points"] == [[0, 0], [30, 30]]
-
-    def test_no_op_when_scale_is_1(self) -> None:
-        elements = [{"x": 10, "y": 10, "width": 20, "height": 10}]
-        result = scale_elements(elements, 1.0)
-        assert result is elements
-        assert elements[0]["x"] == 10
-
-    def test_returns_same_reference_when_scale_is_1(self) -> None:
-        elements = [{"x": 0, "y": 0, "width": 10, "height": 10}]
-        result = scale_elements(elements, 1.0)
         assert result is elements
 
 

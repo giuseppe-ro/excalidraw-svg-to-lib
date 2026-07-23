@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from excalidraw_svg_to_lib.elements.models import (
+from excalidraw_svg_to_lib.elements import (
     Point,
     apply_paint_style,
     create_base_element,
     finalize_linear_element,
+    is_circle_like,
 )
-from excalidraw_svg_to_lib.elements.queries import is_circle_like
 from excalidraw_svg_to_lib.id_generator import IdGenerator
 from excalidraw_svg_to_lib.svg.path_sampling import path_commands_to_points
 from excalidraw_svg_to_lib.svg.transforms import (
@@ -101,18 +101,168 @@ def _convert_circle_like_subpath(
     return element
 
 
+def _subpath_bounds(points: list[Point]) -> tuple[float, float, float, float]:
+    xs = [p[0] for p in points]
+    ys = [p[1] for p in points]
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+def _signed_area(points: list[Point]) -> float:
+    """Compute signed area of a polygon via the shoelace formula.
+
+    In screen coordinates (Y-down), a **positive** value indicates
+    clockwise winding and a **negative** value counter-clockwise.
+    """
+    area = 0.0
+    n = len(points)
+    for i in range(n):
+        x1, y1 = points[i]
+        x2, y2 = points[(i + 1) % n]
+        area += x1 * y2 - x2 * y1
+    return area * 0.5
+
+
+def _bbox_contains(
+    outer: tuple[float, float, float, float],
+    inner: tuple[float, float, float, float],
+) -> bool:
+    return (
+        outer[0] <= inner[0]
+        and outer[1] <= inner[1]
+        and outer[2] >= inner[2]
+        and outer[3] >= inner[3]
+    )
+
+
+def _find_background_color(elements: list[dict[str, Any]]) -> str | None:
+    """Scan existing output for the largest solid-filled rectangle."""
+    best: tuple[float, str] | None = None
+    for elem in elements:
+        if elem.get("type") not in ("rectangle", "ellipse"):
+            continue
+        bg = elem.get("backgroundColor", "")
+        if bg == "transparent" or not bg:
+            continue
+        area = elem["width"] * elem["height"]
+        if best is None or area > best[0]:
+            best = (area, bg)
+    return best[1] if best else None
+
+
 def _convert_path(
     attributes: dict[str, str],
     style: dict[str, Any],
     group_id: str,
     ids: IdGenerator,
+    output_elements: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     path_data = attributes.get("d")
     if not path_data:
         return []
 
+    subpaths = path_commands_to_points(path_data)
+    if not subpaths:
+        return []
+
+    fill_rule = style.get("fill_rule", "nonzero")
+    fill = style.get("fill", "transparent")
+
+    # When fill-rule="evenodd", subpaths alternate the SVG fill between
+    # the path's colour and transparent (showing the background).  We
+    # approximate this by layering subpaths with alternating colours:
+    #
+    #   0 crossings → background  (green)  ← background rect
+    #   1 crossing  → path fill   (white)  ← CCW subpath
+    #   2 crossings → background  (green)  ← CW subpath (hole)
+    #   3 crossings → path fill   (white)  ← CW subpath inside another CW
+    #   … and so on.
+    #
+    # Subpaths are sorted largest-first and assigned a colour based on
+    # their nesting depth.  Elements are emitted bottom-to-top so that
+    # deeper layers render underneath shallower ones.
+    if fill_rule == "evenodd" and fill != "transparent" and len(subpaths) > 1:
+        bg_color = None
+        if output_elements is not None:
+            bg_color = _find_background_color(output_elements)
+
+        # Pair each subpath with its winding sign and bounding box
+        indexed: list[tuple[int, list[Point], float, tuple[float, float, float, float]]] = []
+        for idx, sp in enumerate(subpaths):
+            indexed.append((idx, sp, _signed_area(sp), _subpath_bounds(sp)))
+
+        # Sort by bounding-box area descending (largest first)
+        indexed.sort(
+            key=lambda item: (
+                (item[3][2] - item[3][0]) * (item[3][3] - item[3][1])
+            ),
+            reverse=True,
+        )
+
+        # Determine fill colour for each subpath by walking the nesting
+        # hierarchy.  The first (largest) subpath toggles the background
+        # to the path colour.  Each subsequent subpath that is contained
+        # within any earlier subpath toggles again.  When a subpath is
+        # nested inside *multiple* earlier subpaths we must use the
+        # *innermost* (smallest) container to compute the correct
+        # crossing depth.
+        fills: dict[int, str] = {}
+        for pos, (orig_idx, _sp, _area, sb) in enumerate(indexed):
+            if pos == 0:
+                fills[orig_idx] = fill
+            else:
+                # Find the *innermost* (smallest-area) containing subpath
+                best_container: tuple[int, float] | None = None
+                for earlier_pos in range(pos):
+                    _, _, _, ob = indexed[earlier_pos]
+                    if _bbox_contains(ob, sb):
+                        ob_area = (ob[2] - ob[0]) * (ob[3] - ob[1])
+                        if best_container is None or ob_area < best_container[1]:
+                            best_container = (earlier_pos, ob_area)
+
+                if best_container is not None:
+                    earlier_idx = indexed[best_container[0]][0]
+                    fills[orig_idx] = (
+                        bg_color
+                        if fills[earlier_idx] == fill and bg_color
+                        else fill
+                    )
+                else:
+                    fills[orig_idx] = fill
+
+        # Emit every subpath as a "line" element (not ellipse) so that
+        # all share the same z-sort order and array position controls
+        # layering.  CCW/canvas subpaths first (bottom), holes next,
+        # restoration patches last (top).
+        bottom: list[dict[str, Any]] = []  # canvas / base shapes
+        middle: list[dict[str, Any]] = []  # holes
+        top: list[dict[str, Any]] = []     # restoration layers
+
+        for orig_idx, sp, area_val, _sb in indexed:
+            colour = fills.get(orig_idx, fill)
+            sp_style = dict(style)
+            sp_style["fill"] = colour
+
+            elem = create_base_element("line", group_id, ids)
+            apply_paint_style(elem, sp_style)
+            finalized = finalize_linear_element(elem, sp)
+            if finalized is None:
+                continue
+
+            if area_val < 0:
+                # CCW = canvas → bottom layer
+                bottom.append(finalized)
+            elif colour == fill:
+                # CW, path-colour = restoration → top layer
+                top.append(finalized)
+            else:
+                # CW, bg-colour = hole → middle layer
+                middle.append(finalized)
+
+        return bottom + middle + top
+
+    # Default behaviour (nonzero fill-rule or single subpath)
     elements: list[dict[str, Any]] = []
-    for subpath in path_commands_to_points(path_data):
+    for subpath in subpaths:
         if is_circle_like(subpath):
             elements.append(_convert_circle_like_subpath(subpath, style, group_id, ids))
             continue
@@ -192,7 +342,11 @@ def _convert_element(
 
     converters = get_converters()
     if tag in converters:
-        new_elements = converters[tag](element.attrib, inherit_style(node_style, element.attrib), group_id, ids)
+        elem_style = inherit_style(node_style, element.attrib)
+        if tag == "path":
+            new_elements = converters[tag](element.attrib, elem_style, group_id, ids, output)
+        else:
+            new_elements = converters[tag](element.attrib, elem_style, group_id, ids)
         # Apply accumulated transform to newly created elements
         if current_transform != IDENTITY:
             for elem in new_elements:
@@ -210,15 +364,15 @@ SVG_CONVERTERS: dict[str, callable] = {}
 def get_converters() -> dict[str, callable]:
     if not SVG_CONVERTERS:
         SVG_CONVERTERS.update({
-            "rect": lambda attrs, style, gid, ids: _convert_rect(attrs, style, gid, ids),
-            "circle": lambda attrs, style, gid, ids: _convert_circle(attrs, style, gid, ids),
-            "ellipse": lambda attrs, style, gid, ids: _convert_ellipse(attrs, style, gid, ids),
-            "path": lambda attrs, style, gid, ids: _convert_path(attrs, style, gid, ids),
-            "line": lambda attrs, style, gid, ids: _convert_line(attrs, style, gid, ids),
-            "polygon": lambda attrs, style, gid, ids: _convert_polygon_like(
+            "rect": lambda attrs, style, gid, ids, _o=None: _convert_rect(attrs, style, gid, ids),
+            "circle": lambda attrs, style, gid, ids, _o=None: _convert_circle(attrs, style, gid, ids),
+            "ellipse": lambda attrs, style, gid, ids, _o=None: _convert_ellipse(attrs, style, gid, ids),
+            "path": lambda attrs, style, gid, ids, output=None: _convert_path(attrs, style, gid, ids, output),
+            "line": lambda attrs, style, gid, ids, _o=None: _convert_line(attrs, style, gid, ids),
+            "polygon": lambda attrs, style, gid, ids, _o=None: _convert_polygon_like(
                 attrs, style, gid, ids, close_path=True
             ),
-            "polyline": lambda attrs, style, gid, ids: _convert_polygon_like(
+            "polyline": lambda attrs, style, gid, ids, _o=None: _convert_polygon_like(
                 attrs, style, gid, ids, close_path=False
             ),
         })

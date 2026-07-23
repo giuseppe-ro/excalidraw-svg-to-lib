@@ -82,12 +82,8 @@ def resolve_output_path(
     return Path(default_output_path(raw_inputs, resolved_inputs))
 
 
-def read_text(path: str | Path) -> str:
-    return Path(path).read_text(encoding="utf-8")
-
-
 def read_json(path: str | Path) -> dict:
-    return json.loads(read_text(path))
+    return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
 def write_library_file(

@@ -32,5 +32,7 @@ def inherit_style(parent_style: dict[str, Any], attributes: dict[str, str]) -> d
         style["stroke_width"] = float(attributes["stroke-width"])
     if "opacity" in attributes:
         style["opacity"] = float(attributes["opacity"]) * 100
+    if "fill-rule" in attributes:
+        style["fill_rule"] = attributes["fill-rule"]
 
     return style
