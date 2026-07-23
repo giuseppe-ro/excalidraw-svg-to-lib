@@ -4,6 +4,7 @@ import argparse
 import sys
 from pathlib import Path
 
+from excalidraw_svg_to_lib import __version__
 from excalidraw_svg_to_lib.id_generator import IdGenerator
 from excalidraw_svg_to_lib.io import collect_input_paths, resolve_output_path, write_library_file
 from excalidraw_svg_to_lib.library import NamedLibraryItem, append_to_existing, make_library_file
@@ -56,6 +57,17 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Use legacy v1 library format (default is v2 with searchable names)",
     )
+    parser.add_argument(
+        "--stroke-width",
+        type=float,
+        default=None,
+        help="Override stroke width for all elements (default: use SVG value)",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
+    )
     return parser
 
 
@@ -67,6 +79,7 @@ def main(argv: list[str] | None = None) -> None:
         scale_to_target=not args.no_scale,
         target_icon_size=args.target_size,
         format_version=1 if args.v1 else 2,
+        stroke_width_override=args.stroke_width,
     )
 
     warnings: list[str] = []
@@ -96,7 +109,9 @@ def main(argv: list[str] | None = None) -> None:
 
     for input_path in resolved_inputs:
         try:
-            converted = convert_input_to_library(input_path, options, ids=id_generator)
+            converted = convert_input_to_library(
+                input_path, options, ids=id_generator, warnings=warnings,
+            )
             library_items.append(converted["library"][0])
             icon_names.append(converted["icon_name"])
             print(
@@ -106,6 +121,10 @@ def main(argv: list[str] | None = None) -> None:
         except (OSError, ValueError) as error:
             print(f"Error converting {input_path.name}: {error}", file=sys.stderr)
             raise SystemExit(1) from error
+
+    # Print SVG-level warnings (gradients, missing backgrounds, images, etc.)
+    for warning in warnings:
+        print(f"{_YELLOW}{warning}{_RESET}", file=sys.stderr)
 
     if options.format_version == 2:
         named_items: list[NamedLibraryItem] = [

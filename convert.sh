@@ -7,17 +7,32 @@ OUTPUT=""
 APPEND=""
 
 # Parse optional flags: -i (input folder), -o (output file), -a (append to existing library)
-# Remaining args are passed through to the Python CLI (--stroke-width 1, --no-scale, etc.)
+# Remaining args are passed through to the Python CLI (--no-scale, --stroke-width 2, etc.)
 EXTRA_ARGS=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -i) INPUT="$2"; shift 2 ;;
     -o) OUTPUT="$2"; shift 2 ;;
     -a) APPEND="$2"; shift 2 ;;
-    --help) EXTRA_ARGS+=("$1"); shift ;;           # pass help through to Python CLI
+    -h|--help|-?)
+      # Show Python CLI help and exit without converting
+      SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+      source "$SCRIPT_DIR/scripts/common.sh"
+      pip install -e "./src/python[dev]" --quiet 2>/dev/null
+      python -m excalidraw_svg_to_lib --help
+      exit 0
+      ;;
     --*=*) EXTRA_ARGS+=("$1"); shift ;;            # --target-size=72 (value inline)
     --no-*) EXTRA_ARGS+=("$1"); shift ;;           # --no-label, --no-scale, --no-normalize (boolean flags)
-    --*) EXTRA_ARGS+=("$1" "$2"); shift 2 ;;      # --target-size 72 (value separate)
+    --version) EXTRA_ARGS+=("$1"); shift ;;
+    --*)
+      # Only consume next arg as a value if it doesn't look like a flag
+      if [[ $# -gt 1 && "$2" != -* ]]; then
+        EXTRA_ARGS+=("$1" "$2"); shift 2
+      else
+        EXTRA_ARGS+=("$1"); shift
+      fi
+      ;;
     *)  EXTRA_ARGS+=("$1"); shift ;;               # pass-through: positional paths, unknown flags, etc.
   esac
 done

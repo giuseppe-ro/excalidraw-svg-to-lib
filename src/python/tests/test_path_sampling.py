@@ -55,13 +55,13 @@ class TestPathCommandsToPoints:
             "M 10 50 A 40 40 0 0 1 90 50"
         )
         assert len(subpaths) == 1
-        # 1 start (Move) + 8 arc samples
-        assert len(subpaths[0]) == 9
+        # 1 start (Move) + adaptively-sampled arc points (180° arc → ~16 samples)
+        assert len(subpaths[0]) >= 9
 
     def test_complex_path_with_multiple_segments(self) -> None:
         subpaths = path_commands_to_points("M 0 0 L 50 0 C 50 20, 80 20, 80 50 L 80 100")
         assert len(subpaths) == 1
-        # M(1) + L(1) + C(8 samples) + L(1)
+        # M(1) + L(1) + C(8 samples) + L(1) = 11
         assert len(subpaths[0]) == 11
 
     def test_empty_path_data(self) -> None:

@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from tests.conftest import FIXTURES_DIR, SVG_DIR
 
 from excalidraw_svg_to_lib.cli import main
@@ -38,11 +40,11 @@ def test_converts_all_svg_in_repo_svg_directory() -> None:
     successfully and produces at least one element.
     """
     if not SVG_DIR.is_dir():
-        return  # nothing to test
+        pytest.skip(f"SVG directory not found: {SVG_DIR}")
 
     svg_files = sorted(SVG_DIR.glob("*.svg"))
     if not svg_files:
-        return
+        pytest.skip(f"No SVG files found in {SVG_DIR}")
 
     options = ConvertOptions()
     converted = 0

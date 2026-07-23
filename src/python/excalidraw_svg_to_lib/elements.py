@@ -4,6 +4,10 @@ import time
 from typing import Any
 
 from excalidraw_svg_to_lib.constants import (
+    CIRCLE_LIKE_MAX_DIM,
+    CIRCLE_LIKE_MAX_RATIO,
+    CIRCLE_LIKE_MIN_POINTS,
+    CIRCLE_LIKE_MIN_RATIO,
     DEFAULT_FILL,
     DEFAULT_LABEL_FONT_FAMILY,
     DEFAULT_LABEL_FONT_SIZE,
@@ -64,6 +68,16 @@ def apply_paint_style(element: dict[str, Any], style: dict[str, Any]) -> None:
             else DEFAULT_STROKE_WIDTH
         )
     element["opacity"] = style.get("opacity", 100)
+
+    # SVG stroke-style mappings (populated by inherit_style)
+    if "strokeStyle" in style:
+        element["strokeStyle"] = style["strokeStyle"]
+    # Map stroke-linecap / stroke-linejoin → Excalidraw strokeSharpness
+    # "round" caps/joins → "round" sharpness; everything else stays "sharp"
+    cap = style.get("stroke_linecap", "")
+    join = style.get("stroke_linejoin", "")
+    if cap == "round" or join == "round":
+        element["strokeSharpness"] = "round"
 
 
 def finalize_linear_element(
@@ -170,16 +184,18 @@ def icon_group_id(elements: list[dict[str, Any]]) -> str:
 
 
 def is_circle_like(points: list[Point]) -> bool:
-    if len(points) < 6:
+    """Heuristic: detect small, near-circular sampled paths (e.g. from
+    approximated arcs) so they can be emitted as ellipses instead of lines."""
+    if len(points) < CIRCLE_LIKE_MIN_POINTS:
         return False
     xs = [point[0] for point in points]
     ys = [point[1] for point in points]
     width = max(xs) - min(xs)
     height = max(ys) - min(ys)
-    if width <= 0 or height <= 0 or width > 6 or height > 6:
+    if width <= 0 or height <= 0 or width > CIRCLE_LIKE_MAX_DIM or height > CIRCLE_LIKE_MAX_DIM:
         return False
     ratio = width / height
-    return 0.7 < ratio < 1.3
+    return CIRCLE_LIKE_MIN_RATIO < ratio < CIRCLE_LIKE_MAX_RATIO
 
 
 # ---------------------------------------------------------------------------
@@ -202,9 +218,14 @@ def normalize_elements(elements: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return elements
 
 
-def _scale_elements(elements: list[dict[str, Any]], scale: float) -> list[dict[str, Any]]:
+def _scale_elements(elements: list[dict[str, Any]], scale: float) -> None:
+    """Scale *elements* in-place by *scale*.
+
+    Returns ``None`` — the input list is mutated and the caller already
+    holds a reference to it.
+    """
     if scale == 1.0:
-        return elements
+        return
     for element in elements:
         element["x"] *= scale
         element["y"] *= scale
@@ -222,7 +243,6 @@ def _scale_elements(elements: list[dict[str, Any]], scale: float) -> list[dict[s
         points = element.get("points")
         if points:
             element["points"] = [[p[0] * scale, p[1] * scale] for p in points]
-    return elements
 
 
 def fit_elements_to_size(
@@ -235,4 +255,5 @@ def fit_elements_to_size(
     max_dimension = max(max_x - min_x, max_y - min_y)
     if max_dimension <= 0:
         return elements
-    return _scale_elements(elements, target_size / max_dimension)
+    _scale_elements(elements, target_size / max_dimension)
+    return elements

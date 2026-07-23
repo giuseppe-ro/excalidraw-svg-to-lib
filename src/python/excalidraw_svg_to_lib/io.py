@@ -89,14 +89,7 @@ def read_json(path: str | Path) -> dict:
 def write_library_file(
     library_file: dict,
     output_path: str | Path,
-    *,
-    exclude_keys: tuple[str, ...] = ("metadata",),
 ) -> None:
-    payload = {
-        key: value
-        for key, value in library_file.items()
-        if key not in exclude_keys
-    }
     out = Path(output_path)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(f"{json.dumps(payload, indent=2)}\n", encoding="utf-8")
+    out.write_text(f"{json.dumps(library_file, indent=2)}\n", encoding="utf-8")

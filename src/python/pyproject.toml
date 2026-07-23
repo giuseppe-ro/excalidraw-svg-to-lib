@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "excalidraw-svg-to-lib"
 version = "1.0.0"
-description = "Convert SVG and image files into Excalidraw library format"
+description = "Convert SVG icons into Excalidraw library (.excalidrawlib) files"
 requires-python = ">=3.11"
 dependencies = [
   "svg.path>=6.3",
@@ -16,6 +16,7 @@ dependencies = [
 dev = [
   "pytest>=8.0.0",
   "flake8>=7.0.0",
+  "mypy>=1.0.0",
 ]
 
 [project.scripts]

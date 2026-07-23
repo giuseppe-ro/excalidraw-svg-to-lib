@@ -10,22 +10,23 @@ from excalidraw_svg_to_lib.svg.transforms import IDENTITY
 from excalidraw_svg_to_lib.svg.utils import inherit_style, local_name, parse_length
 
 
-def _collect_defs(root: ET.Element) -> dict[str, ET.Element]:
-    """Walk the SVG tree and collect all elements with an ``id`` attribute.
+def _collect_id_map(root: ET.Element) -> dict[str, ET.Element]:
+    """Walk the SVG tree and collect all elements with an ``id`` attribute
+    into a lookup map (not limited to ``<defs>`` children).
 
-    These are used to resolve ``<use href="#id">`` references.
+    Used to resolve ``<use href="#id">`` references anywhere in the tree.
     """
-    defs: dict[str, ET.Element] = {}
+    id_map: dict[str, ET.Element] = {}
 
     def _walk(element: ET.Element) -> None:
         elem_id = element.attrib.get("id")
         if elem_id:
-            defs[elem_id] = element
+            id_map[elem_id] = element
         for child in element:
             _walk(child)
 
     _walk(root)
-    return defs
+    return id_map
 
 
 def parse_view_box(svg_element: ET.Element) -> dict[str, float]:
@@ -40,7 +41,12 @@ def parse_view_box(svg_element: ET.Element) -> dict[str, float]:
     return {"x": 0.0, "y": 0.0, "width": width, "height": height}
 
 
-def svg_to_elements(svg_content: str, ids: IdGenerator) -> tuple[list[dict[str, Any]], dict[str, float]]:
+def svg_to_elements(
+    svg_content: str,
+    ids: IdGenerator,
+    *,
+    warnings: list[str] | None = None,
+) -> tuple[list[dict[str, Any]], dict[str, float]]:
     try:
         root = ET.fromstring(svg_content)
     except ET.ParseError as exc:
@@ -62,6 +68,9 @@ def svg_to_elements(svg_content: str, ids: IdGenerator) -> tuple[list[dict[str, 
         root.attrib,
     )
 
-    defs = _collect_defs(root)
-    _convert_element(root, root_style, IDENTITY, group_id, ids, elements, defs=defs)
+    defs = _collect_id_map(root)
+    _convert_element(
+        root, root_style, IDENTITY, group_id, ids, elements,
+        defs=defs, warnings=warnings,
+    )
     return elements, view_box
