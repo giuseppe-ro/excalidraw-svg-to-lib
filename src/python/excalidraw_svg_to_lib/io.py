@@ -4,20 +4,26 @@ import json
 from pathlib import Path
 from typing import Any, cast
 
-from excalidraw_svg_to_lib.constants import SUPPORTED_ICON_EXTENSIONS
+from excalidraw_svg_to_lib.constants import IGNORED_FILE_NAMES, SUPPORTED_ICON_EXTENSIONS
 
 
 def is_supported_icon_file(file_path: str | Path) -> bool:
     return Path(file_path).suffix.lower() in SUPPORTED_ICON_EXTENSIONS
 
 
+def _is_ignored_file(name: str) -> bool:
+    return name in IGNORED_FILE_NAMES or name.startswith(".")
+
+
 def collect_input_paths(inputs: list[str | Path], *, warnings: list[str] | None = None) -> list[Path]:
     """Collect supported icon file paths from the given inputs.
 
-    For directories, only files with supported extensions are included.
-    For individual files, unsupported extensions are skipped with a warning.
+    Directories are scanned recursively. Files on the silent-ignore list
+    (dotfiles like .DS_Store, build artifacts) are skipped without warning.
+    Other unsupported files are skipped, and at most one aggregated warning
+    is emitted per directory.
 
-    Non-supported files in directories also generate warnings.
+    Individual unsupported files are skipped with their own warning.
 
     Args:
         inputs: File or directory paths to process.
@@ -27,6 +33,7 @@ def collect_input_paths(inputs: list[str | Path], *, warnings: list[str] | None 
         Sorted, deduplicated list of supported icon file paths.
     """
     collected: list[Path] = []
+    unsupported: list[str] = []
 
     for raw_input in inputs:
         resolved = Path(raw_input).resolve()
@@ -34,18 +41,20 @@ def collect_input_paths(inputs: list[str | Path], *, warnings: list[str] | None 
             raise FileNotFoundError(f"Input not found: {raw_input}")
 
         if resolved.is_dir():
-            for entry in resolved.iterdir():
+            for entry in sorted(resolved.rglob("*")):
                 if not entry.is_file():
                     continue
+                if _is_ignored_file(entry.name):
+                    continue
                 if is_supported_icon_file(entry.name):
-                    collected.append(resolved / entry.name)
-                elif warnings is not None:
-                    warnings.append(
-                        f"WARN: skipping unsupported file {entry.name!r} in {resolved.name}/"
-                    )
+                    collected.append(entry)
+                else:
+                    unsupported.append(entry.name)
             continue
 
         if resolved.is_file():
+            if _is_ignored_file(resolved.name):
+                continue
             if is_supported_icon_file(resolved.name):
                 collected.append(resolved)
             elif warnings is not None:
@@ -53,6 +62,16 @@ def collect_input_paths(inputs: list[str | Path], *, warnings: list[str] | None 
             continue
 
         raise ValueError(f"Not a file or directory: {raw_input}")
+
+    if unsupported and warnings is not None:
+        if len(unsupported) == 1:
+            warnings.append(f"WARN: skipping unsupported file {unsupported[0]!r}")
+        else:
+            names = ", ".join(sorted(set(unsupported))[:5])
+            more = f" and {len(set(unsupported)) - 5} more" if len(set(unsupported)) > 5 else ""
+            warnings.append(
+                f"WARN: skipping {len(unsupported)} unsupported file(s): {names}{more}"
+            )
 
     return list(dict.fromkeys(sorted(collected, key=lambda p: p.name.lower())))
 
