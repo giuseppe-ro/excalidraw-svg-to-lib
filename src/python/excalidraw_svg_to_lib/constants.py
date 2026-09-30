@@ -7,6 +7,15 @@ MIN_ARC_SAMPLES = 4
 
 SUPPORTED_ICON_EXTENSIONS = frozenset({".svg"})
 
+# Files silently skipped when scanning directories (no warning).
+IGNORED_FILE_NAMES = frozenset({
+    ".DS_Store",
+    "Thumbs.db",
+    "desktop.ini",
+    "node_modules",
+    "package-lock.json",
+})
+
 ELEMENT_SORT_ORDER = {
     "rectangle": 0,
     "ellipse": 1,
